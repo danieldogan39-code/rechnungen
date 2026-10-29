@@ -451,7 +451,7 @@ async function importInvoice(uid: string, b: Any) {
     intro: b.intro ?? s.intro,
     notes: b.notes ?? null,
     sent_at: new Date(b.issue_date + "T09:00:00Z").toISOString(),
-    paid_at: paid ? new Date().toISOString() : null,
+    paid_at: paid && /^\d{4}-\d{2}-\d{2}/.test(String(b.paid_at ?? "")) ? new Date(String(b.paid_at).slice(0, 10) + "T12:00:00Z").toISOString() : null,
     imported: true,
   }).select().single();
   if (error) throw error;

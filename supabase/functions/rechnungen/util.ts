@@ -16,7 +16,7 @@ export const DEFAULTS: Record<string, unknown> = {
   number_start: 1,
   small_business: false,
   payment_days: 14,
-  accent: "#2454d6",
+  accent: "#F44C4C",
   intro: "Vielen Dank für Ihren Auftrag. Wir stellen Ihnen folgende Leistungen in Rechnung:",
   closing: "Vielen Dank für die gute Zusammenarbeit!",
   bcc_self: true,

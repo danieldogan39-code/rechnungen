@@ -14,11 +14,11 @@ const FOOT_TOP = 30 * MM;
 const BOTTOM = FOOT_TOP + 8 * MM;
 
 // ---------- Schrift ----------
-const FONT_BASE = "https://cdn.jsdelivr.net/npm/@expo-google-fonts/manrope@0.4.3";
+const FONT_BASE = "https://cdn.jsdelivr.net/npm/@expo-google-fonts/outfit@0.4.3";
 const FONT_FILES = {
-  regular: `${FONT_BASE}/400Regular/Manrope_400Regular.ttf`,
-  semibold: `${FONT_BASE}/600SemiBold/Manrope_600SemiBold.ttf`,
-  bold: `${FONT_BASE}/700Bold/Manrope_700Bold.ttf`,
+  regular: `${FONT_BASE}/400Regular/Outfit_400Regular.ttf`,
+  semibold: `${FONT_BASE}/600SemiBold/Outfit_600SemiBold.ttf`,
+  bold: `${FONT_BASE}/700Bold/Outfit_700Bold.ttf`,
 };
 export type FontBytes = { regular: Uint8Array; semibold: Uint8Array; bold: Uint8Array };
 let fontCache: FontBytes | null = null;
@@ -152,12 +152,13 @@ export async function buildInvoicePdf({ inv, company: c, ref, fonts }: PdfInput)
     unicodeFont = false;
   }
 
-  const ink = rgb(0.09, 0.1, 0.12);
-  const body = rgb(0.2, 0.22, 0.26);
-  const muted = rgb(0.43, 0.46, 0.51);
-  const hair = rgb(0.87, 0.88, 0.9);
-  const accent = hex(c.accent, rgb(0.14, 0.33, 0.84));
-  const panel = rgb(0.965, 0.97, 0.975);
+  // Medialyte-Farben: Nachtblau für Schrift und Gesamtbetrag, Koralle als Akzent
+  const ink = rgb(14 / 255, 25 / 255, 42 / 255);
+  const body = rgb(0.2, 0.25, 0.32);
+  const muted = rgb(0.4, 0.467, 0.561);
+  const hair = rgb(0.86, 0.88, 0.91);
+  const accent = hex(c.accent, rgb(244 / 255, 76 / 255, 76 / 255));
+  const panel = rgb(0.953, 0.961, 0.976);
 
   const isDraft = inv.status === "draft";
   const isStorno = inv.kind === "storno";
@@ -388,7 +389,7 @@ export async function buildInvoicePdf({ inv, company: c, ref, fonts }: PdfInput)
   }
   const totH = 26;
   y -= 4;
-  roundRect(page, lx, y - totH + 15, RIGHT - lx, totH, 7, { color: isStorno ? rgb(0.35, 0.37, 0.41) : accent });
+  roundRect(page, lx, y - totH + 15, RIGHT - lx, totH, 7, { color: isStorno ? rgb(0.4, 0.467, 0.561) : ink });
   const totLabel = (isStorno ? "Stornobetrag" : "Gesamtbetrag") + (small ? "*" : "");
   T(page, totLabel, lx + 3 * MM, y - 2.5, { size: 11, font: fm, color: rgb(1, 1, 1) });
   T(page, eur(t.gross), RIGHT - 3 * MM, y - 3, { size: 13, font: fb2, color: rgb(1, 1, 1), align: "right" });
@@ -435,7 +436,7 @@ export async function buildInvoicePdf({ inv, company: c, ref, fonts }: PdfInput)
     } else {
       drawQr(page, epcPayload({ name: holder, iban, bic: c.bic, amount: t.gross, text: `Rechnung ${inv.number}` }), qx, qy, qs, ink);
       const cx = qx - 4 * MM;
-      T(page, "Überweisen per Code", cx, qy + qs - 9, { size: 8.5, font: fm, color: ink, align: "right" });
+      T(page, "Überweisen per Code", cx, qy + qs - 9, { size: 8.5, font: fm, color: accent, align: "right" });
       T(page, "Mit der Banking-App", cx, qy + qs - 21, { size: 8, color: muted, align: "right" });
       T(page, "scannen – alles ist", cx, qy + qs - 31, { size: 8, color: muted, align: "right" });
       T(page, "schon ausgefüllt.", cx, qy + qs - 41, { size: 8, color: muted, align: "right" });

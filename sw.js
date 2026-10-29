@@ -1,7 +1,8 @@
 // Service Worker: App läuft auch ohne Internet (Ansicht des letzten Stands).
-const CACHE = "rechnungen-v4";
+const CACHE = "rechnungen-v5";
 const SUPABASE_JS = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js";
-const SHELL = ["./", "./index.html", "./config.js", "./manifest.webmanifest", "./icon.svg", "./icon-192.png", "./icon-512.png", SUPABASE_JS];
+const SHELL = ["./", "./index.html", "./config.js", "./manifest.webmanifest", "./icon.svg", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png",
+  "./brand/mono.svg", "./brand/wordmark.svg", "./brand/logo-rechnung.png", "./fonts/outfit-latin-wght-normal.woff2", "./fonts/outfit-latin-ext-wght-normal.woff2", SUPABASE_JS];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

@@ -23,6 +23,13 @@ export const DEFAULTS: Record<string, unknown> = {
   reminders_enabled: true,
   reminder_interval: 7,
   max_reminders: 3,
+  quote_prefix: "AN",
+  quote_valid_days: 30,
+  quote_intro: "Vielen Dank für Ihre Anfrage. Gerne unterbreiten wir Ihnen folgendes Angebot:",
+  quote_closing: "Wir freuen uns auf Ihre Zusage und die Zusammenarbeit.",
+  tpl_quote_subject: "Angebot {nummer} – {firma}",
+  tpl_quote_body:
+    "{anrede},\n\nvielen Dank für Ihr Interesse. Anbei erhalten Sie unser Angebot {nummer} über {betrag}. Es ist gültig bis zum {gueltig}.\n\nWenn alles passt, genügt eine kurze Antwort auf diese E-Mail. Bei Fragen melden Sie sich jederzeit gern.\n\nViele Grüße\n{firma}",
   tpl_invoice_subject: "Rechnung {nummer} – {firma}",
   tpl_invoice_body:
     "{anrede},\n\nanbei erhalten Sie unsere Rechnung {nummer} vom {datum} über {betrag}.\n\nBitte überweisen Sie den Betrag bis zum {faellig} unter Angabe der Rechnungsnummer.\n\nVielen Dank und viele Grüße\n{firma}",

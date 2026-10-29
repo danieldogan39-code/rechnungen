@@ -84,6 +84,18 @@ Deno.serve(async (req) => {
         if (!r) throw new UserError("Abo nicht gefunden.");
         return json(await createFromRecurring(r));
       }
+      case "quote_pdf": {
+        const s = await getSettings(uid);
+        const q = await getQuote(uid, body.id);
+        const { bytes, filename } = await renderQuotePdf(q, s);
+        return new Response(new Uint8Array(bytes), {
+          headers: { ...CORS, "Content-Type": "application/pdf", "Content-Disposition": `inline; filename="${filename}"` },
+        });
+      }
+      case "quote_issue":
+        return json(await issueQuote(uid, body.id, !!body.send));
+      case "quote_send":
+        return json(await sendQuote(uid, body.id));
       case "test_mail":
         return json(await testMail(uid, u.user.email ?? ""));
       default:
@@ -388,6 +400,102 @@ async function testMail(uid: string, userEmail: string) {
     [],
   );
   return { to };
+}
+
+
+// ---------- Angebote ----------
+
+async function getQuote(uid: string, id: string) {
+  const { data } = await db.from("quotes").select("*").eq("id", id).eq("user_id", uid).maybeSingle();
+  if (!data) throw new UserError("Angebot nicht gefunden.");
+  return data;
+}
+
+// Eigene Nummernfolge für Angebote (Zähler mit negativem Jahr, getrennt von den Rechnungen)
+async function nextQuoteNumber(uid: string, s: Any, isoDate: string) {
+  const year = Number(isoDate.slice(0, 4));
+  const withYear = isOn(s.number_year);
+  const { data, error } = await db.rpc("next_invoice_number", { p_user: uid, p_year: withYear ? -year : -1, p_min: 1 });
+  if (error) throw error;
+  const digits = Math.min(Math.max(parseInt(s.number_digits, 10) || 4, 1), 8);
+  const nr = String(data).padStart(digits, "0");
+  const prefix = String(s.quote_prefix ?? "AN");
+  return withYear ? `${prefix}${prefix && !/[-_/]$/.test(prefix) ? "-" : ""}${year}-${nr}` : `${prefix}${nr}`;
+}
+
+async function renderQuotePdf(q: Any, s: Any) {
+  let customer = q.customer;
+  if ((!customer || q.status === "draft") && q.customer_id) {
+    const { data } = await db.from("customers").select("*").eq("id", q.customer_id).maybeSingle();
+    if (data) customer = snapshot(data);
+  }
+  const bytes = await buildInvoicePdf({ inv: { ...q, kind: "quote", customer }, company: s });
+  return { bytes, filename: `Angebot_${q.number ?? "Entwurf"}.pdf` };
+}
+
+async function issueQuote(uid: string, id: string, send: boolean) {
+  const q = await getQuote(uid, id);
+  const s = await getSettings(uid);
+  checkCompany(s);
+  if (!q.customer_id) throw new UserError("Bitte einen Kunden wählen.");
+  const cust = await getCustomer(uid, q.customer_id);
+  const small = isOn(s.small_business);
+  const items = (q.items ?? []).filter((i: Any) => i.description || Number(i.price)).map((i: Any) => (small ? { ...i, vat: 0 } : i));
+  if (!items.length) throw new UserError("Bitte mindestens eine Position eintragen.");
+  if (send && !cust.email) throw new UserError("Für diesen Kunden ist keine E-Mail-Adresse hinterlegt.");
+  const t = totals(items, small);
+  const date = today();
+  const patch: Any = {
+    customer: snapshot(cust), items, net: t.net, vat: t.vat, gross: t.gross,
+    status: q.status === "draft" ? "sent" : q.status,
+  };
+  if (!q.number) {
+    patch.number = await nextQuoteNumber(uid, s, date);
+    patch.issue_date = date;
+  }
+  if (!q.valid_until) patch.valid_until = addDays(patch.issue_date ?? q.issue_date ?? date, Number(s.quote_valid_days) || 30);
+  const { data: upd, error } = await db.from("quotes").update(patch).eq("id", id).eq("user_id", uid).select().single();
+  if (error) throw error;
+  let mail = null;
+  if (send) mail = await sendQuote(uid, id);
+  return { quote: upd, mail };
+}
+
+async function sendQuote(uid: string, id: string) {
+  const q = await getQuote(uid, id);
+  if (!q.number) throw new UserError("Bitte das Angebot zuerst abschließen.");
+  const s = await getSettings(uid);
+  let to = q.customer?.email;
+  if (q.customer_id) {
+    const { data } = await db.from("customers").select("email").eq("id", q.customer_id).maybeSingle();
+    if (data?.email) to = data.email;
+  }
+  if (!to) throw new UserError("Für diesen Kunden ist keine E-Mail-Adresse hinterlegt.");
+  const pdf = await renderQuotePdf(q, s);
+  const vars: Record<string, string> = {
+    nummer: q.number ?? "",
+    kunde: q.customer?.name ?? "",
+    anrede: q.customer?.contact ? `Guten Tag ${q.customer.contact}` : "Sehr geehrte Damen und Herren",
+    betrag: eur(Number(q.gross)),
+    datum: fmtDate(q.issue_date),
+    gueltig: fmtDate(q.valid_until),
+    leistung: q.service_text ?? "",
+    firma: s.name ?? "",
+  };
+  const subject = fill(s.tpl_quote_subject, vars);
+  const text = fill(s.tpl_quote_body, vars);
+  let status = "sent";
+  let error: string | null = null;
+  try {
+    await sendMail(s, to, subject, text, [pdf]);
+  } catch (e) {
+    status = "error";
+    error = e instanceof Error ? e.message : String(e);
+  }
+  await db.from("mail_log").insert({ user_id: uid, quote_id: q.id, type: "quote", recipient: to, subject, status, error });
+  if (status === "error") throw new UserError(`Versand fehlgeschlagen: ${error}`);
+  await db.from("quotes").update({ sent_at: new Date().toISOString() }).eq("id", q.id);
+  return { to, type: "quote" };
 }
 
 // ---------- Abos & täglicher Lauf ----------

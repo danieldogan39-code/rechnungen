@@ -180,7 +180,7 @@ h3.sub{font-size:15px;margin:8px 0 12px}
 .mini{font-size:13.5px;color:var(--muted)}
 .mini li{margin-bottom:5px}
 .linkbtn{border:0;background:none;color:var(--accent);padding:0;cursor:pointer;font-weight:600}
-.toast{position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(10px);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:14px;font-size:14.5px;font-weight:500;z-index:50;opacity:0;transition:.25s var(--ease);width:max-content;max-width:calc(100% - 32px);box-shadow:0 18px 40px -16px rgba(2,6,14,.9)}
+.toast{pointer-events:none;position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(10px);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:14px;font-size:14.5px;font-weight:500;z-index:50;opacity:0;transition:.25s var(--ease);width:max-content;max-width:calc(100% - 32px);box-shadow:0 18px 40px -16px rgba(2,6,14,.9)}
 .toast.show{opacity:1;transform:translateX(-50%)}
 .toast.bad{background:var(--accent-btn);color:#fff}
 
@@ -226,12 +226,17 @@ const DEFAULTS = {
   tpl_cancel_subject: 'Stornierung der Rechnung {alte_nummer}',
   tpl_cancel_body: '{anrede},\n\ndie Rechnung {alte_nummer} wurde storniert. Die Stornorechnung {nummer} finden Sie im Anhang. Sie müssen nichts weiter tun. Falls Sie bereits bezahlt haben, erstatten wir Ihnen den Betrag.\n\nViele Grüße\n{firma}',
   tpl_reminder_subject: 'Zahlungserinnerung zur Rechnung {nummer}',
+  quote_prefix: 'AN', quote_valid_days: 30,
+  quote_intro: 'Vielen Dank für Ihre Anfrage. Gerne unterbreiten wir Ihnen folgendes Angebot:',
+  quote_closing: 'Wir freuen uns auf Ihre Zusage und die Zusammenarbeit.',
+  tpl_quote_subject: 'Angebot {nummer} – {firma}',
+  tpl_quote_body: '{anrede},\n\nvielen Dank für Ihr Interesse. Anbei erhalten Sie unser Angebot {nummer} über {betrag}. Es ist gültig bis zum {gueltig}.\n\nWenn alles passt, genügt eine kurze Antwort auf diese E-Mail. Bei Fragen melden Sie sich jederzeit gern.\n\nViele Grüße\n{firma}',
   tpl_reminder_body: '{anrede},\n\nsicher ist es nur untergegangen: Für unsere Rechnung {nummer} vom {datum} über {betrag}, fällig am {faellig}, konnten wir noch keinen Zahlungseingang feststellen.\n\nBitte überweisen Sie den Betrag in den nächsten Tagen. Die Rechnung finden Sie noch einmal im Anhang. Falls Sie bereits gezahlt haben, betrachten Sie diese E-Mail bitte als gegenstandslos.\n\nViele Grüße\n{firma}',
 };
 
 const state = {
   session: null, tab: 'invoices', filter: 'all', query: '',
-  settings: { ...DEFAULTS }, customers: [], invoices: [], recurring: [], mail: [],
+  settings: { ...DEFAULTS }, customers: [], invoices: [], quotes: [], recurring: [], mail: [], qfilter: 'all',
   offline: false, loaded: false,
 };
 try { state.tab = localStorage.getItem('rechnungen-tab') || 'invoices'; } catch {}
@@ -267,6 +272,7 @@ const ICON = {
   users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14.2A6.5 6.5 0 0 1 21.5 20"/></svg>',
   repeat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></svg>',
   gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  quote: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 13l2 2 4-4"/></svg>',
   refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>',
   close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
 };
@@ -317,12 +323,12 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet()
 const bind = (el, key, fn) => { const b = el.querySelector(`[data-x="${key}"]`); if (b) b.onclick = () => run(b, fn); };
 
 // ---------- Daten ----------
-const CACHE_KEY = 'rechnungen-cache-v1';
+const CACHE_KEY = 'rechnungen-cache-v2';
 function cacheSave() {
-  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ settings: state.settings, customers: state.customers, invoices: state.invoices, recurring: state.recurring, mail: state.mail, at: Date.now() })); } catch {}
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ settings: state.settings, customers: state.customers, invoices: state.invoices, quotes: state.quotes, recurring: state.recurring, mail: state.mail, at: Date.now() })); } catch {}
 }
 function cacheLoad() {
-  try { const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); if (!c) return false; Object.assign(state, { settings: { ...DEFAULTS, ...c.settings }, customers: c.customers, invoices: c.invoices, recurring: c.recurring, mail: c.mail || [] }); return true; } catch { return false; }
+  try { const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); if (!c) return false; Object.assign(state, { settings: { ...DEFAULTS, ...c.settings }, customers: c.customers, invoices: c.invoices, quotes: c.quotes || [], recurring: c.recurring, mail: c.mail || [] }); return true; } catch { return false; }
 }
 
 async function loadAll() {
@@ -332,11 +338,12 @@ async function loadAll() {
       sb.from('customers').select('*').order('name'),
       sb.from('invoices').select('*').order('created_at', { ascending: false }),
       sb.from('recurring').select('*').order('next_date'),
+      sb.from('quotes').select('*').order('created_at', { ascending: false }),
       sb.from('mail_log').select('*').order('sent_at', { ascending: false }).limit(1000),
     ]);
     const err = q.find(r => r.error); if (err) throw err.error;
     state.settings = { ...DEFAULTS, ...(q[0].data?.company || {}) };
-    state.customers = q[1].data; state.invoices = q[2].data; state.recurring = q[3].data; state.mail = q[4].data;
+    state.customers = q[1].data; state.invoices = q[2].data; state.recurring = q[3].data; state.quotes = q[4].data; state.mail = q[5].data;
     state.offline = false; state.loaded = true; cacheSave();
   } catch (e) {
     console.error(e);
@@ -358,8 +365,9 @@ async function callFn(action, payload = {}, binary = false) {
 }
 
 async function openPdf(inv) {
-  const blob = await callFn('pdf', { id: inv.id }, true);
-  const name = `${inv.kind === 'storno' ? 'Stornorechnung' : 'Rechnung'}_${inv.number || 'Entwurf'}.pdf`;
+  const isQ = inv.kind === 'quote';
+  const blob = await callFn(isQ ? 'quote_pdf' : 'pdf', { id: inv.id }, true);
+  const name = `${isQ ? 'Angebot' : inv.kind === 'storno' ? 'Stornorechnung' : 'Rechnung'}_${inv.number || 'Entwurf'}.pdf`;
   const file = new File([blob], name, { type: 'application/pdf' });
   const mobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
   if (mobile && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -391,17 +399,17 @@ function render() {
   const app = $('#app');
   if (!configured) { app.innerHTML = viewNotConfigured(); return; }
   if (!state.session) { app.innerHTML = viewLogin(); wireLogin(); return; }
-  const tabs = [['invoices', 'Rechnungen', ICON.doc], ['customers', 'Kunden', ICON.users], ['recurring', 'Abos', ICON.repeat], ['settings', 'Einstellungen', ICON.gear]];
+  const tabs = [['invoices', 'Rechnungen', ICON.doc], ['quotes', 'Angebote', ICON.quote], ['customers', 'Kunden', ICON.users], ['recurring', 'Abos', ICON.repeat], ['settings', 'Einstellungen', ICON.gear]];
   app.innerHTML = `
     <header class="top"><div class="top-in">
-      <div class="brand">${LOCKUP}<span class="tag"><i class="${state.offline ? 'off' : ''}" title="${state.offline ? 'Offline – gespeicherter Stand' : 'Synchronisiert'}"></i>Rechnungen</span></div>
+      <div class="brand">${LOCKUP}<span class="tag"><i class="${state.offline ? 'off' : ''}" title="${state.offline ? 'Offline – gespeicherter Stand' : 'Synchronisiert'}"></i>Portal</span></div>
       <span class="sp"></span>
       <nav class="tabs">${tabs.map(([k, l, i]) => `<button data-tab="${k}" class="${state.tab === k ? 'on' : ''}">${i}<span>${l}</span></button>`).join('')}</nav>
       <button class="icon-btn" data-refresh aria-label="Aktualisieren">${ICON.refresh}</button>
     </div></header>
     <main>${state.offline ? '<div class="banner">Offline: Du siehst den zuletzt gespeicherten Stand. Änderungen sind erst wieder mit Internet möglich.</div>' : ''}${
       !state.loaded ? '<div class="empty">Lade …</div>' :
-      state.tab === 'customers' ? viewCustomers() : state.tab === 'recurring' ? viewRecurring() : state.tab === 'settings' ? viewSettings() : viewInvoices()
+      state.tab === 'quotes' ? viewQuotes() : state.tab === 'customers' ? viewCustomers() : state.tab === 'recurring' ? viewRecurring() : state.tab === 'settings' ? viewSettings() : viewInvoices()
     }</main>`;
   $$('[data-tab]').forEach(b => b.onclick = () => { state.tab = b.dataset.tab; try { localStorage.setItem('rechnungen-tab', state.tab); } catch {} render(); window.scrollTo(0, 0); });
   $('[data-refresh]').onclick = e => run(e.currentTarget, loadAll);
@@ -410,7 +418,8 @@ function render() {
   $$('[data-open-cust]').forEach(b => b.onclick = () => customerEditor(customerById(b.dataset.openCust)));
   $$('[data-open-rec]').forEach(b => b.onclick = () => recurringEditor(state.recurring.find(r => r.id === b.dataset.openRec)));
   const fab = $('[data-fab]');
-  if (fab) fab.onclick = () => ({ invoices: () => invoiceEditor(null), customers: () => customerEditor(null), recurring: () => recurringEditor(null) })[state.tab]?.();
+  if (state.tab === 'quotes') wireQuotes();
+  if (fab) fab.onclick = () => ({ invoices: () => invoiceEditor(null), quotes: () => quoteEditor(null), customers: () => customerEditor(null), recurring: () => recurringEditor(null) })[state.tab]?.();
 }
 
 function viewNotConfigured() {
@@ -589,6 +598,8 @@ function invoiceDetail(inv) {
   const isInv = inv.kind === 'invoice';
   const canAct = !state.offline;
   const rel = [];
+  const fromQuote = state.quotes.find(q => q.invoice_id === inv.id);
+  if (fromQuote) rel.push(`Aus Angebot <button class="linkbtn" data-goto-quote="${fromQuote.id}">${esc(fromQuote.number || 'Entwurf')}</button>`);
   if (ref) rel.push(`${inv.kind === 'storno' ? 'Storniert' : 'Ersetzt'} <button class="linkbtn" data-goto="${ref.id}">${esc(ref.number)}</button>`);
   if (storno) rel.push(`Storniert durch <button class="linkbtn" data-goto="${storno.id}">${esc(storno.number)}</button>`);
   if (replacement) rel.push(`Ersetzt durch <button class="linkbtn" data-goto="${replacement.id}">${esc(replacement.number || 'Entwurf')}</button>`);
@@ -621,6 +632,7 @@ function invoiceDetail(inv) {
     ${logs.length ? `<ul class="mini">${logs.map(m => `<li>${fmtDateTime(m.sent_at)} · ${typeLabel[m.type] || m.type} an ${esc(m.recipient)} ${m.status === 'sent' ? '✓' : `<span style="color:var(--bad)">fehlgeschlagen: ${esc(m.error)}</span>`}</li>`).join('')}</ul>` : '<p class="mini">Noch keine E-Mails.</p>'}
   `);
   $$('[data-goto]', el).forEach(b => b.onclick = () => { const t = invoiceById(b.dataset.goto); closeSheet(el); setTimeout(() => t.status === 'draft' ? invoiceEditor(t) : invoiceDetail(t), 220); });
+  $$('[data-goto-quote]', el).forEach(b => b.onclick = () => { const q = quoteById(b.dataset.gotoQuote); closeSheet(el); setTimeout(() => quoteDetail(q), 220); });
   const after = async msg => { closeSheet(el); await loadAll(); if (msg) toast(msg); };
   bind(el, 'pdf', () => openPdf(inv));
   bind(el, 'paid', async () => { const { error } = await sb.from('invoices').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('id', inv.id); if (error) throw error; await after('Als bezahlt markiert'); });
@@ -637,6 +649,169 @@ function invoiceDetail(inv) {
     const r = await callFn('correct', { id: inv.id, mode: 'cancel' });
     await after(r.mailError ? `Storniert, aber Versand fehlgeschlagen: ${r.mailError}` : 'Storniert und Stornorechnung versendet');
   });
+}
+
+// ----- Angebote -----
+const quoteById = id => state.quotes.find(q => q.id === id);
+const quoteTotal = q => q.status === 'draft' ? totals(q.items).gross : +q.gross;
+function quoteStatus(q) {
+  if (q.status === 'draft') return { key: 'draft', label: 'Entwurf', cls: 'blue' };
+  if (q.status === 'accepted') return { key: 'accepted', label: q.invoice_id ? 'Angenommen · berechnet' : 'Angenommen', cls: 'ok' };
+  if (q.status === 'declined') return { key: 'declined', label: 'Abgelehnt', cls: 'grey' };
+  if (q.valid_until && q.valid_until < todayISO()) return { key: 'expired', label: 'Abgelaufen', cls: 'grey' };
+  return { key: 'open', label: 'Offen', cls: 'warn' };
+}
+const qchip = q => { const s = quoteStatus(q); return `<span class="chip ${s.cls}">${esc(s.label)}</span>`; };
+
+function viewQuotes() {
+  const all = state.quotes.map(q => [q, quoteStatus(q)]);
+  const sum = keys => all.filter(([, s]) => keys.includes(s.key)).reduce((a, [q]) => a + quoteTotal(q), 0);
+  const cnt = keys => all.filter(([, s]) => keys.includes(s.key)).length;
+  const decided = cnt(['accepted']) + cnt(['declined']);
+  const rate = decided ? Math.round(cnt(['accepted']) / decided * 100) : null;
+  const filters = [['all', 'Alle'], ['draft', 'Entwürfe'], ['open', 'Offen'], ['accepted', 'Angenommen'], ['declined', 'Abgelehnt'], ['expired', 'Abgelaufen']];
+  const q = state.query.trim().toLowerCase();
+  const list = all.filter(([x, st]) => (state.qfilter === 'all' || st.key === state.qfilter) &&
+    (!q || `${x.number || ''} ${x.customer?.name || customerById(x.customer_id)?.name || ''} ${x.service_text || ''}`.toLowerCase().includes(q)));
+  const open = cnt(['open']);
+  return `${pageHead('Angebote', open ? `${open} ${open === 1 ? 'Angebot wartet' : 'Angebote warten'} auf Antwort · ${eur(sum(['open']))}` : 'Schreib ein Angebot – mit einem Tipp wird daraus später die Rechnung.')}
+    <div class="stats">
+      <div class="stat"><span>Offen</span><b>${eur(sum(['open']))}</b></div>
+      <div class="stat"><span>Angenommen</span><b>${eur(sum(['accepted']))}</b></div>
+      <div class="stat"><span>Zusagequote</span><b>${rate === null ? '–' : rate + ' %'}</b></div>
+    </div>
+    <div class="bar">
+      <div class="chips">${filters.map(([k, l]) => `<button data-qfilter="${k}" class="${state.qfilter === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+      <input class="search" type="search" placeholder="Suchen …" value="${esc(state.query)}" aria-label="Angebote durchsuchen">
+    </div>
+    ${list.length ? `<div class="list">${list.map(([x]) => `
+      <button class="row" data-open-quote="${x.id}">
+        <div class="row-main"><b>${esc(x.customer?.name || customerById(x.customer_id)?.name || 'Ohne Kunde')}</b>
+          <small>${esc(x.number || 'Entwurf')}${x.issue_date ? ' · ' + fmtDate(x.issue_date) : ''}${x.valid_until && x.status === 'sent' ? ' · gültig bis ' + fmtDate(x.valid_until) : ''}${x.service_text ? ' · ' + esc(x.service_text) : ''}</small></div>
+        <div class="row-side"><b>${eur(quoteTotal(x))}</b>${qchip(x)}</div>
+      </button>`).join('')}</div>`
+      : `<div class="empty"><b>${state.quotes.length ? 'Nichts gefunden' : 'Noch keine Angebote'}</b>${state.quotes.length ? 'Ändere den Filter oder die Suche.' : 'Leg mit dem Plus-Knopf dein erstes Angebot an.'}</div>`}
+    <button class="btn fab" data-fab>+ Angebot</button>`;
+}
+function wireQuotes() {
+  $$('[data-qfilter]').forEach(b => b.onclick = () => { state.qfilter = b.dataset.qfilter; render(); });
+  const s = $('.search');
+  if (s) s.oninput = () => { state.query = s.value; const pos = s.selectionStart; render(); const n = $('.search'); n.focus(); n.setSelectionRange(pos, pos); };
+  $$('[data-open-quote]').forEach(b => b.onclick = () => { const q = quoteById(b.dataset.openQuote); q.status === 'draft' ? quoteEditor(q) : quoteDetail(q); });
+}
+
+function quoteEditor(q) {
+  const isNew = !q;
+  q = q || { items: [{ quantity: 1, unit: 'pauschal', vat: 19 }], intro: S().quote_intro, service_text: '', notes: '', customer_id: '', status: 'draft' };
+  const sent = q.status === 'sent';
+  const el = openSheet(isNew ? 'Neues Angebot' : sent ? `Angebot ${q.number} bearbeiten` : 'Angebotsentwurf', `
+    ${sent ? '<div class="note">Das Angebot wurde schon verschickt. Nach dem Speichern kannst du die neue Fassung direkt erneut senden – die Nummer bleibt gleich.</div>' : ''}
+    <label>Kunde<div class="inline"><select name="customer_id">${custOptions(q.customer_id)}</select><button type="button" class="btn ghost sm" data-x="newcust">+ Neu</button></div></label>
+    <div class="grid2">
+      <label>Leistungszeitraum (optional)<input name="service_text" value="${esc(q.service_text)}" placeholder="z. B. ab Dezember 2026"></label>
+      <label>Gültig bis<input name="valid_until" type="date" value="${esc(q.valid_until || '')}"></label>
+    </div>
+    <p class="mini" style="margin:-6px 0 14px">Leer lassen = ${esc(S().quote_valid_days)} Tage ab Versand.</p>
+    <label>Einleitungstext<textarea name="intro" rows="2">${esc(q.intro)}</textarea></label>
+    <h3 class="sub">Positionen</h3>
+    ${itemsEditor(q.items)}
+    <label>Anmerkung (optional)<textarea name="notes" rows="2" placeholder="Erscheint unter der Angebotssumme">${esc(q.notes)}</textarea></label>
+    ${sent ? '' : '<p class="mini"><button type="button" class="linkbtn" data-x="issueonly">Nur abschließen, ohne Versand</button></p>'}`,
+    `${q.status === 'draft' && !isNew ? '<button class="btn ghost danger" data-x="del">Löschen</button>' : ''}
+     <button class="btn ghost" data-x="preview">Vorschau</button>
+     <button class="btn ghost" data-x="save">Speichern</button>
+     <button class="btn" data-x="send">${sent ? 'Speichern &amp; erneut senden' : 'Abschließen &amp; senden'}</button>`);
+  wireItems(el);
+  let id = q.id;
+  const collect = () => ({
+    customer_id: $('[name=customer_id]', el).value || null, service_text: $('[name=service_text]', el).value.trim() || null,
+    valid_until: $('[name=valid_until]', el).value || null,
+    intro: $('[name=intro]', el).value.trim(), notes: $('[name=notes]', el).value.trim(), items: readItems(el),
+  });
+  const withTotals = d => { const t = totals(d.items); return { ...d, net: t.net, vat: t.vat, gross: t.gross }; };
+  const save = async () => {
+    const d = withTotals(collect());
+    if (id) { const { error } = await sb.from('quotes').update(d).eq('id', id); if (error) throw error; }
+    else { const { data, error } = await sb.from('quotes').insert({ ...d, status: 'draft' }).select().single(); if (error) throw error; id = data.id; }
+    return d;
+  };
+  const doIssue = async send => {
+    const d = collect();
+    if (!d.customer_id) throw new Error('Bitte einen Kunden wählen.');
+    if (!d.items.length) throw new Error('Bitte mindestens eine Position eintragen.');
+    const c = customerById(d.customer_id);
+    if (send && !c?.email) throw new Error('Der Kunde hat keine E-Mail-Adresse. Trag sie beim Kunden ein oder wähle „Nur abschließen“.');
+    if (!confirm(send ? `Angebot ${sent ? 'erneut ' : ''}an ${c.email} senden?` : 'Angebot abschließen, ohne es zu versenden?')) return;
+    await save();
+    const r = await callFn('quote_issue', { id, send });
+    closeSheet(el); await loadAll();
+    toast(send ? `Angebot ${r.quote.number} an ${c.email} gesendet` : `Angebot ${r.quote.number} abgeschlossen`);
+  };
+  bind(el, 'save', async () => { await save(); closeSheet(el); await loadAll(); toast('Angebot gespeichert'); });
+  bind(el, 'preview', async () => { await save(); await openPdf({ id, kind: 'quote', number: q.number }); loadAll(); });
+  bind(el, 'send', () => doIssue(true));
+  bind(el, 'issueonly', () => doIssue(false));
+  bind(el, 'del', async () => { if (!confirm('Angebotsentwurf löschen?')) return; const { error } = await sb.from('quotes').delete().eq('id', id); if (error) throw error; closeSheet(el); await loadAll(); toast('Entwurf gelöscht'); });
+  bind(el, 'newcust', () => customerEditor(null, c => { $('[name=customer_id]', el).innerHTML = custOptions(c.id); }));
+}
+
+async function quoteToInvoice(q) {
+  const { data, error } = await sb.from('invoices').insert({
+    status: 'draft', kind: 'invoice', customer_id: q.customer_id, items: q.items,
+    service_text: q.service_text || '', intro: S().intro, notes: q.notes || '',
+  }).select().single();
+  if (error) throw error;
+  const { error: e2 } = await sb.from('quotes').update({ status: 'accepted', invoice_id: data.id, decided_at: q.decided_at || new Date().toISOString() }).eq('id', q.id);
+  if (e2) throw e2;
+  return data;
+}
+
+function quoteDetail(q) {
+  const st = quoteStatus(q);
+  const logs = state.mail.filter(m => m.quote_id === q.id);
+  const inv = q.invoice_id && invoiceById(q.invoice_id);
+  const canAct = !state.offline;
+  const el = openSheet(`Angebot ${q.number}`, `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:2px"><span class="big">${eur(q.gross)}</span>${qchip(q)}</div>
+    <div class="mini" style="margin-bottom:14px">${esc(q.customer?.name || customerById(q.customer_id)?.name || '')}${q.customer?.email ? ' · ' + esc(q.customer.email) : ''}</div>
+    ${inv ? `<div class="note">Berechnet mit <button class="linkbtn" data-goto-inv="${inv.id}">${esc(inv.number || 'Rechnungsentwurf')}</button></div>` : ''}
+    <dl class="kv">
+      <dt>Angebotsdatum</dt><dd>${fmtDate(q.issue_date)}</dd>
+      <dt>Gültig bis</dt><dd>${fmtDate(q.valid_until)}</dd>
+      ${q.service_text ? `<dt>Leistung</dt><dd>${esc(q.service_text)}</dd>` : ''}
+      <dt>Versendet</dt><dd>${q.sent_at ? fmtDateTime(q.sent_at) : 'noch nicht'}</dd>
+      ${q.decided_at ? `<dt>${q.status === 'declined' ? 'Abgelehnt am' : 'Angenommen am'}</dt><dd>${fmtDate(String(q.decided_at).slice(0, 10))}</dd>` : ''}
+    </dl>
+    <div class="actions">
+      <button class="btn ghost" data-x="pdf">PDF ansehen / teilen</button>
+      ${canAct && !inv && q.status !== 'declined' ? '<button class="btn" data-x="invoice">Angenommen – in Rechnung umwandeln</button>' : ''}
+      ${canAct && q.status === 'sent' ? '<button class="btn ghost" data-x="accept">Nur als angenommen markieren</button>' : ''}
+      ${canAct && q.status === 'sent' ? '<button class="btn ghost" data-x="edit">Bearbeiten</button>' : ''}
+      ${canAct && ['sent', 'accepted'].includes(q.status) ? '<button class="btn ghost" data-x="resend">Erneut an Kunden senden</button>' : ''}
+      ${canAct && q.status === 'sent' ? '<button class="btn ghost danger" data-x="decline">Als abgelehnt markieren</button>' : ''}
+      ${canAct && ['accepted', 'declined'].includes(q.status) && !inv ? '<button class="btn ghost" data-x="reopen">Wieder auf offen setzen</button>' : ''}
+    </div>
+    <h3 class="sub">Positionen</h3>
+    <ul class="mini">${(q.items || []).map(it => `<li>${esc(fmtNum(it.quantity, 3))} ${esc(it.unit || '')} · ${esc(String(it.description || '').split('\n')[0])} · ${eur(lineNet(it))}</li>`).join('')}</ul>
+    <h3 class="sub" style="margin-top:14px">E-Mail-Verlauf</h3>
+    ${logs.length ? `<ul class="mini">${logs.map(m => `<li>${fmtDateTime(m.sent_at)} · an ${esc(m.recipient)} ${m.status === 'sent' ? '✓' : `<span style="color:var(--bad)">fehlgeschlagen: ${esc(m.error)}</span>`}</li>`).join('')}</ul>` : '<p class="mini">Noch keine E-Mails.</p>'}`);
+  $$('[data-goto-inv]', el).forEach(b => b.onclick = () => { const t = invoiceById(b.dataset.gotoInv); closeSheet(el); setTimeout(() => t.status === 'draft' ? invoiceEditor(t) : invoiceDetail(t), 220); });
+  const setStatus = async (status, msg) => {
+    const { error } = await sb.from('quotes').update({ status, decided_at: status === 'sent' ? null : new Date().toISOString() }).eq('id', q.id);
+    if (error) throw error; closeSheet(el); await loadAll(); toast(msg);
+  };
+  bind(el, 'pdf', () => openPdf({ ...q, kind: 'quote' }));
+  bind(el, 'invoice', async () => {
+    if (!confirm(`Angebot ${q.number} als angenommen markieren und daraus einen Rechnungsentwurf erstellen?`)) return;
+    const d = await quoteToInvoice(q);
+    closeSheet(el); await loadAll(); state.tab = 'invoices'; render(); invoiceEditor(invoiceById(d.id));
+    toast('Rechnungsentwurf aus dem Angebot erstellt – prüfen und abschicken');
+  });
+  bind(el, 'accept', () => setStatus('accepted', 'Als angenommen markiert'));
+  bind(el, 'decline', () => setStatus('declined', 'Als abgelehnt markiert'));
+  bind(el, 'reopen', () => setStatus('sent', 'Wieder offen'));
+  bind(el, 'edit', () => { closeSheet(el); setTimeout(() => quoteEditor(q), 220); });
+  bind(el, 'resend', async () => { if (!confirm('Das Angebot noch einmal an den Kunden senden?')) return; const r = await callFn('quote_send', { id: q.id }); closeSheet(el); await loadAll(); toast(`An ${r.to} gesendet`); });
 }
 
 // ----- Kunden -----
@@ -772,6 +947,10 @@ function viewSettings() {
     ${f('number_start', 'Fortsetzen ab Nummer', 'inputmode="numeric" placeholder="z. B. 31, wenn deine letzte Rechnung RE0030 war"')}
     ${cb('number_year', 'Jahreszahl in die Nummer (z. B. RE-2026-0001), neu beginnend jedes Jahr')}
   </div>
+  <div class="section"><h3>Angebote</h3>
+    <div class="grid2">${f('quote_prefix', 'Nummern-Präfix', 'placeholder="AN"')}${f('quote_valid_days', 'Gültig für Tage', 'inputmode="numeric"')}</div>
+    ${ta('quote_intro', 'Standard-Einleitung', 2)}${ta('quote_closing', 'Schlusssatz', 2)}
+  </div>
   <div class="section"><h3>Rechnungstexte</h3>
     ${f('payment_days', 'Zahlungsziel in Tagen', 'inputmode="numeric"')}
     ${ta('intro', 'Standard-Einleitung', 2)}${ta('closing', 'Schlusssatz', 2)}
@@ -788,8 +967,8 @@ function viewSettings() {
     <div class="grid2">${f('reminder_interval', 'Tage zwischen Erinnerungen', 'inputmode="numeric"')}${f('max_reminders', 'Höchstens so viele Erinnerungen', 'inputmode="numeric"')}</div>
     <p class="hint" style="margin:0">Die erste Erinnerung geht raus, wenn eine Rechnung so viele Tage überfällig ist.</p>
   </div>
-  <div class="section"><h3>E-Mail-Texte</h3><p class="hint">Platzhalter: {anrede} {nummer} {alte_nummer} {kunde} {betrag} {datum} {faellig} {leistung} {firma}</p>
-    ${tpl('invoice', 'Neue Rechnung')}${tpl('reminder', 'Zahlungserinnerung')}${tpl('correction', 'Korrigierte Rechnung')}${tpl('cancel', 'Stornierung')}
+  <div class="section"><h3>E-Mail-Texte</h3><p class="hint">Platzhalter: {anrede} {nummer} {alte_nummer} {kunde} {betrag} {datum} {faellig} {gueltig} {leistung} {firma}</p>
+    ${tpl('invoice', 'Neue Rechnung')}${tpl('reminder', 'Zahlungserinnerung')}${tpl('correction', 'Korrigierte Rechnung')}${tpl('cancel', 'Stornierung')}${tpl('quote', 'Angebot')}
     <button class="btn ghost sm" data-reset-tpl>Texte auf Standard zurücksetzen</button>
   </div>
   <div class="bar"><button class="btn" data-save-settings style="flex:1">Einstellungen speichern</button><button class="btn ghost" data-logout>Abmelden</button></div>
@@ -799,7 +978,7 @@ function wireSettings() {
   const read = () => {
     const out = { ...S() };
     $$('[data-s]').forEach(i => { const k = i.dataset.s; out[k] = i.type === 'checkbox' ? i.checked : i.value.trim(); });
-    for (const k of ['payment_days', 'reminder_interval', 'max_reminders']) out[k] = Math.max(0, parseInt(out[k], 10) || 0);
+    for (const k of ['payment_days', 'reminder_interval', 'max_reminders', 'quote_valid_days']) out[k] = Math.max(0, parseInt(out[k], 10) || 0);
     out.number_digits = Math.min(Math.max(parseInt(out.number_digits, 10) || 4, 1), 8);
     out.number_start = Math.max(1, parseInt(out.number_start, 10) || 1);
     if (out.iban) out.iban = out.iban.replace(/\s+/g, '').toUpperCase();

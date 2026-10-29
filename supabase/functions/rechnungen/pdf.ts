@@ -162,6 +162,7 @@ export async function buildInvoicePdf({ inv, company: c, ref, fonts }: PdfInput)
 
   const isDraft = inv.status === "draft";
   const isStorno = inv.kind === "storno";
+  const isQuote = inv.kind === "quote";
   const smallSetting = c.small_business === true || c.small_business === "true";
   const items0: Item[] = Array.isArray(inv.items) ? inv.items : [];
   // Kleinunternehmer: Entwürfe folgen der Einstellung, ausgestellte Rechnungen ihren gespeicherten Steuersätzen
@@ -169,7 +170,7 @@ export async function buildInvoicePdf({ inv, company: c, ref, fonts }: PdfInput)
   const items: Item[] = Array.isArray(inv.items) ? inv.items : [];
   const t = totals(items, small);
   const cu = inv.customer ?? {};
-  const docType = isStorno ? "Stornorechnung" : "Rechnung";
+  const docType = isQuote ? "Angebot" : isStorno ? "Stornorechnung" : "Rechnung";
   const fullTitle = `${docType} ${inv.number ?? "(Entwurf)"}`;
 
   doc.setTitle(clean(fullTitle));
@@ -267,13 +268,17 @@ export async function buildInvoicePdf({ inv, company: c, ref, fonts }: PdfInput)
 
   // ---------- Infobox ----------
   const info: [string, string][] = [
-    [isStorno ? "Storno-Nr." : "Rechnungsnr.", inv.number ?? "Entwurf"],
+    [isQuote ? "Angebotsnr." : isStorno ? "Storno-Nr." : "Rechnungsnr.", inv.number ?? "Entwurf"],
   ];
   if (cu.number) info.push(["Kundennr.", String(cu.number)]);
-  info.push([isStorno ? "Datum" : "Rechnungsdatum", isDraft ? "beim Abschließen" : fmtDate(inv.issue_date)]);
+  info.push([isQuote ? "Angebotsdatum" : isStorno ? "Datum" : "Rechnungsdatum", !inv.number ? "beim Abschließen" : fmtDate(inv.issue_date)]);
   if (inv.service_text) info.push(["Leistung", String(inv.service_text)]);
-  if (!isStorno && !isDraft && inv.due_date) info.push(["Fällig am", fmtDate(inv.due_date)]);
-  if (isDraft) info.push(["Zahlungsziel", `${c.payment_days ?? 14} Tage`]);
+  if (isQuote) {
+    info.push(["Gültig bis", inv.valid_until ? fmtDate(inv.valid_until) : `${c.quote_valid_days ?? 30} Tage ab Datum`]);
+  } else {
+    if (!isStorno && !isDraft && inv.due_date) info.push(["Fällig am", fmtDate(inv.due_date)]);
+    if (isDraft) info.push(["Zahlungsziel", `${c.payment_days ?? 14} Tage`]);
+  }
   if (cu.vat_id) info.push(["USt-IdNr. Kunde", String(cu.vat_id)]);
   if (ref?.number) info.push([isStorno ? "Storniert" : "Ersetzt", String(ref.number)]);
 
@@ -390,7 +395,7 @@ export async function buildInvoicePdf({ inv, company: c, ref, fonts }: PdfInput)
   const totH = 26;
   y -= 4;
   roundRect(page, lx, y - totH + 15, RIGHT - lx, totH, 7, { color: isStorno ? rgb(0.4, 0.467, 0.561) : ink });
-  const totLabel = (isStorno ? "Stornobetrag" : "Gesamtbetrag") + (small ? "*" : "");
+  const totLabel = (isQuote ? "Angebotssumme" : isStorno ? "Stornobetrag" : "Gesamtbetrag") + (small ? "*" : "");
   T(page, totLabel, lx + 3 * MM, y - 2.5, { size: 11, font: fm, color: rgb(1, 1, 1) });
   T(page, eur(t.gross), RIGHT - 3 * MM, y - 3, { size: 13, font: fb2, color: rgb(1, 1, 1), align: "right" });
   y -= totH + 6;
@@ -403,7 +408,7 @@ export async function buildInvoicePdf({ inv, company: c, ref, fonts }: PdfInput)
   y -= 8;
   const iban = String(c.iban ?? "").replace(/\s/g, "");
   const holder = String(c.account_holder || c.name || "");
-  const showPay = !isStorno && t.gross > 0 && !!iban;
+  const showPay = !isQuote && !isStorno && t.gross > 0 && !!iban;
   if (showPay) {
     const payH = 34 * MM;
     if (y - payH < BOTTOM) newPage();
@@ -442,6 +447,30 @@ export async function buildInvoicePdf({ inv, company: c, ref, fonts }: PdfInput)
       T(page, "schon ausgefüllt.", cx, qy + qs - 41, { size: 8, color: muted, align: "right" });
     }
     y = top - payH - 10 * MM;
+  } else if (isQuote) {
+    // Gültigkeit und Feld für die Auftragserteilung
+    const validTxt = inv.valid_until
+      ? `Dieses Angebot ist gültig bis zum ${fmtDate(inv.valid_until)}. Die Zahlung erfolgt nach Rechnungsstellung innerhalb von ${c.payment_days ?? 14} Tagen.`
+      : `Dieses Angebot ist ${c.quote_valid_days ?? 30} Tage gültig. Die Zahlung erfolgt nach Rechnungsstellung innerhalb von ${c.payment_days ?? 14} Tagen.`;
+    for (const ln of wrap(validTxt, f, 10, CW)) {
+      T(page, ln, ML, y, { size: 10 });
+      y -= 14;
+    }
+    y -= 8;
+    const accH = 30 * MM;
+    if (y - accH < BOTTOM) newPage();
+    const top = y + 4;
+    roundRect(page, ML, top - accH, CW, accH, 8, { color: rgb(1, 1, 1), border: hair, bw: 0.8 });
+    const px = ML + 5 * MM;
+    T(page, "Auftragserteilung", px, top - 6 * MM, { size: 10, font: fm, color: ink });
+    T(page, `Hiermit erteilen wir den Auftrag gemäß Angebot ${inv.number ?? ""}.`, px, top - 6 * MM - 14, { size: 9, color: body });
+    const lineY = top - accH + 9 * MM;
+    const half = (CW - 15 * MM) / 2;
+    page.drawLine({ start: { x: px, y: lineY }, end: { x: px + half - 5 * MM, y: lineY }, thickness: 0.6, color: muted });
+    page.drawLine({ start: { x: px + half + 5 * MM, y: lineY }, end: { x: RIGHT - 5 * MM, y: lineY }, thickness: 0.6, color: muted });
+    T(page, "Ort, Datum", px, lineY - 11, { size: 8, color: muted });
+    T(page, "Unterschrift, Firmenstempel", px + half + 5 * MM, lineY - 11, { size: 8, color: muted });
+    y = top - accH - 10 * MM;
   } else if (isStorno) {
     T(page, "Bereits gezahlte Beträge erstatten oder verrechnen wir.", ML, y, { size: 10 });
     y -= 22;
@@ -450,7 +479,9 @@ export async function buildInvoicePdf({ inv, company: c, ref, fonts }: PdfInput)
   // ---------- Anmerkungen, Schlusssatz ----------
   const paras: string[] = [];
   if (inv.notes) paras.push(String(inv.notes));
-  if (!isStorno && c.closing) paras.push(String(c.closing));
+  if (isQuote) {
+    if (c.quote_closing) paras.push(String(c.quote_closing));
+  } else if (!isStorno && c.closing) paras.push(String(c.closing));
   for (const p of paras) {
     const lines = wrap(p, f, 10, CW);
     if (y - lines.length * 14 < BOTTOM) newPage();

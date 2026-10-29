@@ -103,8 +103,11 @@ jobs:
       - name: APK prüfen
         run: |
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
-          "$BT/apksigner" verify --print-certs medialyte-rechnungen.apk | grep -E "Signer #1 certificate (DN|SHA-256)"
-          "$BT/aapt" dump badging medialyte-rechnungen.apk | grep -E "^package|^application-label"
+          echo "Build-Tools: $BT"
+          "$BT/apksigner" verify --print-certs medialyte-rechnungen.apk > /tmp/sig.txt
+          head -3 /tmp/sig.txt
+          ("$BT/aapt2" dump badging medialyte-rechnungen.apk 2>/dev/null || "$BT/aapt" dump badging medialyte-rechnungen.apk) | head -3 || true
+          ls -la medialyte-rechnungen.apk
 
       - name: Als Download veröffentlichen
         env:

@@ -114,6 +114,20 @@ main{max-width:960px;margin:0 auto;padding:22px 20px calc(110px + env(safe-area-
 .row-main small{color:var(--muted);font-size:13.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
 .row-side{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:5px}
 .row-side b{font-weight:600;font-size:15.5px}
+.group{background:var(--card);border:1px solid var(--line);border-radius:var(--r);margin-bottom:10px;overflow:hidden;transition:border-color .2s}
+.group.is-open{border-color:var(--line-2)}
+.group-h{display:flex;width:100%;gap:12px;align-items:center;text-align:left;padding:14px 16px;border:0;background:none;color:inherit;cursor:pointer}
+.group-h:hover{background:rgba(255,255,255,.025)}
+.g-num{flex:none;min-width:52px;height:30px;padding:0 8px;border-radius:9px;background:var(--soft);color:var(--muted);font-size:12.5px;font-weight:600;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.group-h .row-main b{font-size:16px}
+.g-chev{width:18px;height:18px;color:var(--muted);flex:none;transition:transform .2s}
+.group.is-open .g-chev{transform:rotate(180deg)}
+.group-b{border-top:1px solid var(--line);background:rgba(10,18,32,.35)}
+.group-b .row{padding-left:84px}
+@media (max-width:520px){.group-b .row{padding-left:18px}.g-num{min-width:46px}}
+.g-more{display:block;width:100%;padding:12px 18px;border:0;border-top:1px solid var(--line);background:none;color:var(--muted);font-size:14px;cursor:pointer;text-align:left}
+.g-more:hover{color:var(--ink);background:rgba(255,255,255,.02)}
+.g-new{color:var(--accent);font-weight:500}
 .chip{font-size:12px;font-weight:600;border-radius:999px;padding:3px 10px;white-space:nowrap;letter-spacing:.01em}
 .chip.grey{background:rgba(170,190,220,.1);color:var(--muted)}.chip.ok{background:var(--ok-soft);color:var(--ok)}
 .chip.warn{background:var(--warn-soft);color:var(--warn)}.chip.bad{background:var(--bad-soft);color:var(--bad)}
@@ -465,6 +479,41 @@ function wireLogin() {
 }
 
 // ----- Rechnungen -----
+// Kundenorientierte Ansicht: Belege nach Kunde gruppiert, Neuestes oben
+const docDate = d => d.status === 'draft' ? '9999-12-31' + (d.created_at || '') : String(d.issue_date || '') + (d.created_at || '');
+const newestFirst = (a, b) => docDate(b).localeCompare(docDate(a)) || String(b.number || '').localeCompare(String(a.number || ''), 'de', { numeric: true });
+state.groups = state.groups || {};
+function groupedByCustomer(tab, docs, rowHtml, summary) {
+  const map = new Map();
+  for (const d of docs) { const k = d.customer_id || 'none'; if (!map.has(k)) map.set(k, []); map.get(k).push(d); }
+  const groups = [...map.entries()].map(([k, list]) => ({ k, list: list.sort(newestFirst), c: customerById(k) }))
+    .sort((a, b) => newestFirst(a.list[0], b.list[0]));
+  const filtered = state.query.trim() || (tab === 'inv' ? state.filter : state.qfilter) !== 'all';
+  return groups.map(g => {
+    const sm = summary(g.list);
+    const key = `${tab}:${g.k}`;
+    const mode = state.groups[key] ?? (filtered || sm.attention ? 'open' : 'closed');
+    const shown = mode === 'all' || filtered ? g.list : mode === 'open' ? g.list.slice(0, 5) : [];
+    const name = g.c ? g.c.name : (g.list[0].customer?.name || 'Ohne Kunde');
+    return `<section class="group ${mode !== 'closed' ? 'is-open' : ''}">
+      <button class="group-h" data-group="${key}" aria-expanded="${mode !== 'closed'}">
+        <span class="g-num">${esc(g.c?.number || '–')}</span>
+        <span class="row-main"><b>${esc(name)}</b><small>${sm.line}</small></span>
+        <span class="row-side">${sm.right}</span>
+        <svg class="g-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      ${mode !== 'closed' ? `<div class="group-b">${shown.map(rowHtml).join('')}
+        ${shown.length < g.list.length ? `<button class="g-more" data-group-all="${key}">Alle ${g.list.length} anzeigen</button>` : ''}
+        ${g.c ? `<button class="g-more g-new" data-group-new="${tab}:${g.k}">+ ${tab === 'inv' ? 'Rechnung' : 'Angebot'} für ${esc(name)}</button>` : ''}</div>` : ''}
+    </section>`;
+  }).join('');
+}
+function wireGroups(onNew) {
+  $$('[data-group]').forEach(b => b.onclick = () => { const k = b.dataset.group; const isOpen = b.getAttribute('aria-expanded') === 'true'; state.groups[k] = isOpen ? 'closed' : 'open'; render(); });
+  $$('[data-group-all]').forEach(b => b.onclick = () => { state.groups[b.dataset.groupAll] = 'all'; render(); });
+  $$('[data-group-new]').forEach(b => b.onclick = () => onNew(b.dataset.groupNew.split(':')[1]));
+}
+
 function viewInvoices() {
   const today = todayISO(), year = today.slice(0, 4);
   const withStatus = state.invoices.map(i => [i, invStatus(i)]);
@@ -486,12 +535,23 @@ function viewInvoices() {
       <div class="chips">${filters.map(([k, l]) => `<button data-filter="${k}" class="${state.filter === k ? 'on' : ''}">${l}</button>`).join('')}</div>
       <input class="search" type="search" placeholder="Suchen …" value="${esc(state.query)}" aria-label="Rechnungen durchsuchen">
     </div>
-    ${list.length ? `<div class="list">${list.map(([i]) => `
+    ${list.length ? groupedByCustomer('inv', list.map(([i]) => i), i => `
       <button class="row" data-open-inv="${i.id}">
-        <div class="row-main"><b>${esc(custName(i))}</b>
-          <small>${esc(i.number || 'Entwurf')}${i.issue_date ? ' · ' + fmtDate(i.issue_date) : ''}${i.recurring_id ? ' · Abo' : ''}${i.service_text ? ' · ' + esc(i.service_text) : ''}</small></div>
+        <div class="row-main"><b>${esc(i.number || 'Entwurf')}</b>
+          <small>${i.issue_date ? fmtDate(i.issue_date) : 'noch nicht ausgestellt'}${i.recurring_id ? ' · Abo' : ''}${i.imported ? ' · übernommen' : ''}${i.service_text ? ' · ' + esc(i.service_text) : ''}</small></div>
         <div class="row-side"><b>${eur(invTotal(i))}</b>${chip(i)}</div>
-      </button>`).join('')}</div>`
+      </button>`, list => {
+        const st = list.map(invStatus);
+        const open = list.filter((_, n) => ['open', 'overdue'].includes(st[n].key)).reduce((a, i) => a + +i.gross, 0);
+        const overdue = st.some(x => x.key === 'overdue'), drafts = st.filter(x => x.key === 'draft').length;
+        const count = list.filter(i => i.kind === 'invoice' && i.status !== 'draft').length;
+        const latest = list.find(i => i.issue_date);
+        return {
+          attention: open > 0 || drafts > 0,
+          line: `${count} ${count === 1 ? 'Rechnung' : 'Rechnungen'}${latest ? ' · zuletzt ' + fmtDate(latest.issue_date) : ''}${drafts ? ` · ${drafts} ${drafts === 1 ? 'Entwurf' : 'Entwürfe'}` : ''}`,
+          right: open > 0 ? `<b>${eur(open)}</b><span class="chip ${overdue ? 'bad' : 'warn'}">${overdue ? 'überfällig' : 'offen'}</span>` : drafts ? '<span class="chip blue">Entwurf</span>' : '<span class="chip ok">alles bezahlt</span>',
+        };
+      })
       : `<div class="empty"><b>${state.invoices.length ? 'Nichts gefunden' : 'Noch keine Rechnungen'}</b>${state.invoices.length ? 'Ändere den Filter oder die Suche.' : 'Leg mit dem Plus-Knopf deine erste Rechnung an.'}</div>`}
     <button class="btn fab" data-fab>+ Rechnung</button>`;
 }
@@ -500,6 +560,7 @@ function wireInvoices() {
   const s = $('.search');
   if (s) s.oninput = () => { state.query = s.value; const pos = s.selectionStart; render(); const n = $('.search'); n.focus(); n.setSelectionRange(pos, pos); };
   $$('[data-open-inv]').forEach(b => b.onclick = () => { const inv = invoiceById(b.dataset.openInv); inv.status === 'draft' ? invoiceEditor(inv) : invoiceDetail(inv); });
+  wireGroups(cid => invoiceEditor(null, cid));
 }
 
 // Positionen-Editor (für Rechnungen und Abos)
@@ -582,9 +643,9 @@ function wireItems(root) {
 
 const custOptions = sel => `<option value="">Kunde wählen …</option>` + state.customers.map(c => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(c.name)}${c.number ? ' · ' + esc(c.number) : ''}${c.email ? '' : ' (ohne E-Mail)'}</option>`).join('');
 
-function invoiceEditor(inv) {
+function invoiceEditor(inv, presetCustomer = '') {
   const isNew = !inv;
-  inv = inv || { items: [{ quantity: 1, unit: 'Std.', vat: 19 }], intro: S().intro, service_text: '', notes: '', customer_id: '' };
+  inv = inv || { items: [{ quantity: 1, unit: 'Std.', vat: 19 }], intro: S().intro, service_text: '', notes: '', customer_id: presetCustomer };
   const ref = inv.ref_invoice_id && invoiceById(inv.ref_invoice_id);
   const el = openSheet(isNew ? 'Neue Rechnung' : 'Rechnungsentwurf', `
     ${ref ? `<div class="note">Korrektur zu <b>${esc(ref.number)}</b>. Beim Versand bekommt der Kunde die Stornorechnung und diese neue Rechnung zusammen.</div>` : ''}
@@ -774,7 +835,7 @@ function viewQuotes() {
   const filters = [['all', 'Alle'], ['draft', 'Entwürfe'], ['open', 'Offen'], ['accepted', 'Angenommen'], ['declined', 'Abgelehnt'], ['expired', 'Abgelaufen']];
   const q = state.query.trim().toLowerCase();
   const list = all.filter(([x, st]) => (state.qfilter === 'all' || st.key === state.qfilter) &&
-    (!q || `${x.number || ''} ${x.customer?.name || customerById(x.customer_id)?.name || ''} ${x.service_text || ''}`.toLowerCase().includes(q)));
+    (!q || `${x.number || ''} ${x.customer?.name || customerById(x.customer_id)?.name || ''} ${customerById(x.customer_id)?.number || ''} ${x.service_text || ''}`.toLowerCase().includes(q)));
   const open = cnt(['open']);
   return `${pageHead('Angebote', open ? `${open} ${open === 1 ? 'Angebot wartet' : 'Angebote warten'} auf Antwort · ${eur(sum(['open']))}` : 'Schreib ein Angebot – mit einem Tipp wird daraus später die Rechnung.')}
     <div class="stats">
@@ -786,12 +847,20 @@ function viewQuotes() {
       <div class="chips">${filters.map(([k, l]) => `<button data-qfilter="${k}" class="${state.qfilter === k ? 'on' : ''}">${l}</button>`).join('')}</div>
       <input class="search" type="search" placeholder="Suchen …" value="${esc(state.query)}" aria-label="Angebote durchsuchen">
     </div>
-    ${list.length ? `<div class="list">${list.map(([x]) => `
+    ${list.length ? groupedByCustomer('quo', list.map(([x]) => x), x => `
       <button class="row" data-open-quote="${x.id}">
-        <div class="row-main"><b>${esc(x.customer?.name || customerById(x.customer_id)?.name || 'Ohne Kunde')}</b>
-          <small>${esc(x.number || 'Entwurf')}${x.issue_date ? ' · ' + fmtDate(x.issue_date) : ''}${x.valid_until && x.status === 'sent' ? ' · gültig bis ' + fmtDate(x.valid_until) : ''}${x.service_text ? ' · ' + esc(x.service_text) : ''}</small></div>
+        <div class="row-main"><b>${esc(x.number || 'Entwurf')}</b>
+          <small>${x.issue_date ? fmtDate(x.issue_date) : 'noch nicht verschickt'}${x.valid_until && x.status === 'sent' ? ' · gültig bis ' + fmtDate(x.valid_until) : ''}${x.service_text ? ' · ' + esc(x.service_text) : ''}</small></div>
         <div class="row-side"><b>${splitText(x.items)}</b>${qchip(x)}</div>
-      </button>`).join('')}</div>`
+      </button>`, list => {
+        const st = list.map(quoteStatus);
+        const open = st.filter(x => x.key === 'open').length, drafts = st.filter(x => x.key === 'draft').length, acc = st.filter(x => x.key === 'accepted').length;
+        return {
+          attention: open > 0 || drafts > 0,
+          line: `${list.length} ${list.length === 1 ? 'Angebot' : 'Angebote'}${acc ? ` · ${acc} angenommen` : ''}${drafts ? ` · ${drafts} ${drafts === 1 ? 'Entwurf' : 'Entwürfe'}` : ''}`,
+          right: open ? `<span class="chip warn">${open} offen</span>` : drafts ? '<span class="chip blue">Entwurf</span>' : acc ? '<span class="chip ok">angenommen</span>' : '<span class="chip grey">abgeschlossen</span>',
+        };
+      })
       : `<div class="empty"><b>${state.quotes.length ? 'Nichts gefunden' : 'Noch keine Angebote'}</b>${state.quotes.length ? 'Ändere den Filter oder die Suche.' : 'Leg mit dem Plus-Knopf dein erstes Angebot an.'}</div>`}
     <button class="btn fab" data-fab>+ Angebot</button>`;
 }
@@ -800,11 +869,12 @@ function wireQuotes() {
   const s = $('.search');
   if (s) s.oninput = () => { state.query = s.value; const pos = s.selectionStart; render(); const n = $('.search'); n.focus(); n.setSelectionRange(pos, pos); };
   $$('[data-open-quote]').forEach(b => b.onclick = () => { const q = quoteById(b.dataset.openQuote); q.status === 'draft' ? quoteEditor(q) : quoteDetail(q); });
+  wireGroups(cid => quoteEditor(null, cid));
 }
 
-function quoteEditor(q) {
+function quoteEditor(q, presetCustomer = '') {
   const isNew = !q;
-  q = q || { items: [{ quantity: 1, unit: 'pauschal', vat: 19 }], intro: S().quote_intro, service_text: '', notes: '', customer_id: '', status: 'draft' };
+  q = q || { items: [{ quantity: 1, unit: 'pauschal', vat: 19 }], intro: S().quote_intro, service_text: '', notes: '', customer_id: presetCustomer, status: 'draft' };
   const sent = q.status === 'sent';
   const el = openSheet(isNew ? 'Neues Angebot' : sent ? `Angebot ${q.number} bearbeiten` : 'Angebotsentwurf', `
     ${sent ? '<div class="note">Das Angebot wurde schon verschickt. Nach dem Speichern kannst du die neue Fassung direkt erneut senden – die Nummer bleibt gleich.</div>' : ''}

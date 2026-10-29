@@ -69,7 +69,12 @@ Deno.serve(async (req) => {
         });
       }
       case "issue":
-        return json(await issue(uid, body.id, !!body.send));
+        return json(await issue(uid, body.id, !!body.send, { issueDate: body.issue_date, paidAt: body.paid_at, paid: !!body.paid }));
+      case "recurring_backfill": {
+        const { data: r } = await db.from("recurring").select("*").eq("id", body.id).eq("user_id", uid).maybeSingle();
+        if (!r) throw new UserError("Abo nicht gefunden.");
+        return json(await backfillRecurring(r, body.mode === "open" ? "open" : "paid"));
+      }
       case "send":
         return json(await sendInvoice(uid, body.id));
       case "remind": {
@@ -93,7 +98,7 @@ Deno.serve(async (req) => {
         });
       }
       case "quote_issue":
-        return json(await issueQuote(uid, body.id, !!body.send));
+        return json(await issueQuote(uid, body.id, !!body.send, body.issue_date));
       case "quote_send":
         return json(await sendQuote(uid, body.id));
       case "import_invoice":
@@ -177,7 +182,20 @@ async function nextNumber(uid: string, s: Any, isoDate: string, customerId?: str
 
 // ---------- Abschließen ----------
 
-async function issue(uid: string, id: string, send: boolean) {
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+// Frühestes Datum für Nachträge und Statistik
+const HISTORY_START = "2024-01-01";
+// Datum für Nachträge prüfen: gültig, nicht in der Zukunft, nicht vor 2024
+function pastDate(v: unknown, label: string): string | null {
+  if (v === undefined || v === null || v === "") return null;
+  const d = String(v).slice(0, 10);
+  if (!ISO.test(d)) throw new UserError(`${label} ist ungültig.`);
+  if (d < HISTORY_START) throw new UserError(`${label} darf nicht vor dem 01.01.2024 liegen.`);
+  if (d > today()) throw new UserError(`${label} darf nicht in der Zukunft liegen.`);
+  return d;
+}
+
+async function issue(uid: string, id: string, send: boolean, opt: { issueDate?: string; paidAt?: string; paid?: boolean } = {}) {
   const inv = await getInvoice(uid, id);
   if (inv.status !== "draft") throw new UserError("Diese Rechnung ist bereits abgeschlossen.");
   const s = await getSettings(uid);
@@ -192,11 +210,15 @@ async function issue(uid: string, id: string, send: boolean) {
   if (send && !cust.email) throw new UserError("Für diesen Kunden ist keine E-Mail-Adresse hinterlegt.");
 
   const t = totals(items, small);
-  const issueDate = today();
+  const issueDate = pastDate(opt.issueDate, "Das Rechnungsdatum") ?? today();
+  const paidAt = opt.paid ? (pastDate(opt.paidAt, "Das Zahlungsdatum") ?? issueDate) : null;
+  if (paidAt && paidAt < issueDate) throw new UserError("Das Zahlungsdatum liegt vor dem Rechnungsdatum.");
   const number = await nextNumber(uid, s, issueDate, inv.customer_id);
   const { data: upd, error } = await db.from("invoices").update({
     number,
-    status: "open",
+    status: paidAt ? "paid" : "open",
+    paid_at: paidAt ? new Date(paidAt + "T12:00:00Z").toISOString() : null,
+    sent_at: issueDate < today() ? new Date(issueDate + "T09:00:00Z").toISOString() : null,
     issue_date: issueDate,
     due_date: addDays(issueDate, Number(s.payment_days) || 14),
     customer: snapshot(cust),
@@ -432,6 +454,7 @@ async function importInvoice(uid: string, b: Any) {
   if (!items.length) throw new UserError("Bitte mindestens eine Position angeben.");
   const t = totals(items);
   const s = await getSettings(uid);
+  pastDate(b.issue_date, "Das Rechnungsdatum");
   const due = /^\d{4}-\d{2}-\d{2}$/.test(String(b.due_date ?? "")) ? b.due_date : addDays(b.issue_date, Number(s.payment_days) || 14);
   const paid = b.status === "paid";
   const { data, error } = await db.from("invoices").insert({
@@ -488,7 +511,7 @@ async function renderQuotePdf(q: Any, s: Any) {
   return { bytes, filename: `Angebot_${q.number ?? "Entwurf"}.pdf` };
 }
 
-async function issueQuote(uid: string, id: string, send: boolean) {
+async function issueQuote(uid: string, id: string, send: boolean, issueDateIn?: string) {
   const q = await getQuote(uid, id);
   const s = await getSettings(uid);
   checkCompany(s);
@@ -499,7 +522,7 @@ async function issueQuote(uid: string, id: string, send: boolean) {
   if (!items.length) throw new UserError("Bitte mindestens eine Position eintragen.");
   if (send && !cust.email) throw new UserError("Für diesen Kunden ist keine E-Mail-Adresse hinterlegt.");
   const t = totals(items, small);
-  const date = today();
+  const date = pastDate(issueDateIn, "Das Angebotsdatum") ?? today();
   const patch: Any = {
     customer: snapshot(cust), items, net: t.net, vat: t.vat, gross: t.gross,
     status: q.status === "draft" ? "sent" : q.status,
@@ -585,6 +608,35 @@ async function createFromRecurring(r: Any) {
     const msg = e instanceof Error ? e.message : String(e);
     throw new UserError(`Rechnung als Entwurf angelegt, aber nicht abgeschlossen: ${msg}`);
   }
+}
+
+// Abo mit Startdatum in der Vergangenheit: vergangene Zeiträume nachtragen, ohne E-Mail
+function workday(iso: string) {
+  const d = new Date(iso + "T00:00:00Z");
+  const wd = d.getUTCDay();
+  return wd === 6 ? addDays(iso, 2) : wd === 0 ? addDays(iso, 1) : iso;
+}
+async function backfillRecurring(r: Any, mode: "paid" | "open") {
+  if (r.next_date < HISTORY_START) throw new UserError("Abos können höchstens bis 01.01.2024 zurück nachgetragen werden.");
+  const s = await getSettings(r.user_id);
+  const t = today();
+  const created: string[] = [];
+  let guard = 0;
+  while (r.next_date <= t && guard++ < 120) {
+    const start = r.next_date;
+    const next = addMonths(start, STEP[r.interval] ?? 1);
+    const { data: draft, error } = await db.from("invoices").insert({
+      user_id: r.user_id, kind: "invoice", status: "draft", customer_id: r.customer_id, items: r.items,
+      service_text: `${fmtDate(start)} – ${fmtDate(addDays(next, -1))}`, intro: s.intro, recurring_id: r.id,
+    }).select().single();
+    if (error) throw error;
+    await db.from("recurring").update({ next_date: next }).eq("id", r.id);
+    r.next_date = next;
+    const issueDate = workday(start) > t ? t : workday(start);
+    const res = await issue(r.user_id, draft.id, false, { issueDate, paid: mode === "paid", paidAt: issueDate });
+    created.push(res.invoice.number);
+  }
+  return { created, next_date: r.next_date };
 }
 
 async function runDaily() {

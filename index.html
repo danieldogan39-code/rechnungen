@@ -114,6 +114,44 @@ main{max-width:960px;margin:0 auto;padding:22px 20px calc(110px + env(safe-area-
 .row-main small{color:var(--muted);font-size:13.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
 .row-side{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:5px}
 .row-side b{font-weight:600;font-size:15.5px}
+.ytiles{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;margin:-4px -20px 18px;padding:4px 20px}
+.ytiles::-webkit-scrollbar{display:none}
+@media (max-width:759px){.ytiles{margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}}
+.ytile{flex:0 0 auto;min-width:150px;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px 8px;color:inherit;cursor:pointer;display:flex;flex-direction:column;gap:2px;transition:border-color .2s,transform .15s}
+.ytile:hover{border-color:var(--line-3)}.ytile:active{transform:scale(.98)}
+.ytile.all{background:linear-gradient(160deg,var(--soft),var(--card))}
+.ytile .ylabel{font-size:12.5px;color:var(--muted)}
+.ytile b{font-size:19px;letter-spacing:-.02em;color:var(--ink);font-variant-numeric:tabular-nums}
+.ydelta{font-size:12.5px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+.ydelta.up,.mbar small.up{color:var(--ok)}.ydelta.down,.mbar small.down{color:var(--accent)}
+.spark{width:100%;height:28px;margin-top:6px}
+.sheet.wide{max-width:860px}
+.st-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.big-d{font-size:15px}.big-d small{font-weight:400;color:var(--muted);font-size:12.5px}
+.chart{position:relative;margin:4px -4px 6px;touch-action:pan-y}
+.chart-svg{width:100%;height:230px;display:block;cursor:crosshair}
+.chart .grid line{stroke:var(--line);stroke-width:1;vector-effect:non-scaling-stroke}
+.chart .ticks{position:relative;height:16px;margin-top:-20px;font-size:11px;color:var(--dim)}
+.chart .ticks span{position:absolute;transform:translateX(-50%);white-space:nowrap}.chart .ticks .first{transform:none}.chart .ticks .last{transform:translateX(-100%)}
+.chart .cross{stroke:var(--line-3);stroke-width:1;stroke-dasharray:3 3;vector-effect:non-scaling-stroke}
+.chart-tip{position:absolute;top:-6px;transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:10px;padding:6px 10px;font-size:12.5px;display:flex;flex-direction:column;gap:1px;pointer-events:none;white-space:nowrap;z-index:2}
+.chart-tip b{color:var(--bg)}.chart-tip .mini{color:#5d6b80}
+.legend{display:flex;gap:16px;font-size:12.5px;color:var(--muted);margin-bottom:14px}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.legend i.dash{background:repeating-linear-gradient(90deg,var(--muted) 0 4px,transparent 4px 7px)}
+.st-kpi{grid-template-columns:repeat(3,1fr)}.st-kpi .stat b{font-size:17px}
+.st-q{grid-template-columns:repeat(4,1fr)}.st-q .stat b{font-size:15px}
+@media (max-width:520px){.st-kpi{grid-template-columns:repeat(2,1fr)}.st-q{grid-template-columns:repeat(2,1fr)}}
+.mbars{display:flex;flex-direction:column;gap:7px}
+.mbar{display:grid;grid-template-columns:110px 1fr 100px 62px;gap:10px;align-items:center;font-size:13.5px}
+.mbar.as-btn{background:none;border:0;padding:4px 0;color:inherit;font-family:inherit;font-size:13.5px;width:100%;text-align:left;cursor:pointer;border-radius:8px}.mbar.as-btn:hover .ml{color:var(--ink)}
+.st-years{margin:-4px 0 14px}
+.mbar .ml{color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mbar .mt{height:8px;background:var(--soft);border-radius:4px;overflow:hidden}
+.mbar .mt i{display:block;height:100%;background:var(--ok);border-radius:4px}
+.mbar b{font-variant-numeric:tabular-nums;font-weight:600;text-align:right}
+.mbar small{font-size:12px;text-align:right;color:var(--muted)}
+@media (max-width:520px){.mbar{grid-template-columns:84px 1fr 86px 50px;gap:8px;font-size:13px}}
 .group{background:var(--card);border:1px solid var(--line);border-radius:var(--r);margin-bottom:10px;overflow:hidden;transition:border-color .2s}
 .group.is-open{border-color:var(--line-2)}
 .group-h{display:flex;width:100%;gap:12px;align-items:center;text-align:left;padding:14px 16px;border:0;background:none;color:inherit;cursor:pointer}
@@ -272,6 +310,9 @@ const todayISO = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berl
 const num = v => { let s = String(v ?? '').trim().replace(/\s|€/g, ''); if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.'); const n = parseFloat(s); return isFinite(n) ? n : 0; };
 const fmtNum = (n, d = 2) => (+n || 0).toLocaleString('de-DE', { minimumFractionDigits: d === 2 ? 2 : 0, maximumFractionDigits: d === 2 ? 2 : 3, useGrouping: false });
 const S = () => state.settings;
+const HISTORY_START = '2024-01-01';
+const STEP_M = { monthly: 1, quarterly: 3, yearly: 12 };
+const addMonthsISO = (iso, n) => { const [y, m, d] = iso.split('-').map(Number); const t = new Date(Date.UTC(y, m - 1 + n, 1)); const last = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() + 1, 0)).getUTCDate(); t.setUTCDate(Math.min(d, last)); return t.toISOString().slice(0, 10); };
 const INTERVALS = { monthly: 'monatlich', quarterly: 'vierteljährlich', yearly: 'jährlich' };
 const BILLING = { once: 'Einmalig (pauschal)', monthly: 'Abo · monatlich', quarterly: 'Abo · vierteljährlich', yearly: 'Abo · jährlich' };
 const BILL_SUFFIX = { once: '', monthly: ' / Monat', quarterly: ' / Quartal', yearly: ' / Jahr' };
@@ -529,8 +570,9 @@ function viewInvoices() {
     <div class="stats">
       <div class="stat"><span>Offen</span><b>${eur(sum(['open', 'overdue']))}</b></div>
       <div class="stat ${sum(['overdue']) > 0 ? 'bad' : ''}"><span>Überfällig</span><b>${eur(sum(['overdue']))}</b></div>
-      <div class="stat"><span>Bezahlt ${year}</span><b>${eur(paidYear)}</b></div>
+      <div class="stat"><span>Bezahlt gesamt</span><b>${eur(revenueEvents().reduce((a, e) => a + e.amount, 0))}</b></div>
     </div>
+    ${yearTiles()}
     <div class="bar">
       <div class="chips">${filters.map(([k, l]) => `<button data-filter="${k}" class="${state.filter === k ? 'on' : ''}">${l}</button>`).join('')}</div>
       <input class="search" type="search" placeholder="Suchen …" value="${esc(state.query)}" aria-label="Rechnungen durchsuchen">
@@ -561,6 +603,7 @@ function wireInvoices() {
   if (s) s.oninput = () => { state.query = s.value; const pos = s.selectionStart; render(); const n = $('.search'); n.focus(); n.setSelectionRange(pos, pos); };
   $$('[data-open-inv]').forEach(b => b.onclick = () => { const inv = invoiceById(b.dataset.openInv); inv.status === 'draft' ? invoiceEditor(inv) : invoiceDetail(inv); });
   wireGroups(cid => invoiceEditor(null, cid));
+  $$('[data-year]').forEach(b => b.onclick = () => statsSheet(b.dataset.year));
 }
 
 // Positionen-Editor (für Rechnungen und Abos)
@@ -655,7 +698,15 @@ function invoiceEditor(inv, presetCustomer = '') {
     <h3 class="sub">Positionen</h3>
     ${itemsEditor(inv.items)}
     <label>Anmerkung (optional)<textarea name="notes" rows="2" placeholder="Erscheint unter den Summen">${esc(inv.notes)}</textarea></label>
-    <p class="mini">Die Rechnungsnummer und das Datum werden beim Abschließen vergeben. Danach ist die Rechnung nicht mehr änderbar, nur noch per Korrektur.
+    <div class="section" style="padding:14px 16px">
+      <div class="grid2">
+        <label>Rechnungsdatum<input name="issue_date" type="date" value="${todayISO()}" min="${HISTORY_START}" max="${todayISO()}"></label>
+        <label class="check" style="margin-top:26px"><input type="checkbox" name="paid"> Bereits bezahlt</label>
+      </div>
+      <label data-paid-row hidden>Bezahlt am<input name="paid_at" type="date" value="${todayISO()}" min="${HISTORY_START}" max="${todayISO()}"></label>
+      <p class="mini" data-backdate-hint hidden style="margin:0;color:var(--warn)">Rückdatieren nur für Rechnungen, die du an diesem Tag wirklich ausgestellt hast (z. B. Nachtrag aus dem alten System). Neue Rechnungen bekommen das heutige Datum – den Leistungszeitraum kannst du jederzeit in die Vergangenheit legen.</p>
+    </div>
+    <p class="mini">Die Rechnungsnummer wird beim Abschließen vergeben. Danach ist die Rechnung nicht mehr änderbar, nur noch per Korrektur.
     <br><button type="button" class="linkbtn" data-x="issueonly">Nur abschließen, ohne Versand</button></p>`,
     `${isNew ? '' : '<button class="btn ghost danger" data-x="del">Löschen</button>'}
      <button class="btn ghost" data-x="preview">Vorschau</button>
@@ -663,6 +714,19 @@ function invoiceEditor(inv, presetCustomer = '') {
      <button class="btn" data-x="issue">Abschließen &amp; senden</button>`);
   wireItems(el);
   let id = inv.id;
+  const dateIn = $('[name=issue_date]', el), paidCb = $('[name=paid]', el), paidIn = $('[name=paid_at]', el);
+  const syncDate = () => {
+    const back = dateIn.value && dateIn.value < todayISO();
+    $('[data-backdate-hint]', el).hidden = !back;
+    $('[data-paid-row]', el).hidden = !paidCb.checked;
+    paidIn.min = dateIn.value || HISTORY_START;
+    // Nachträge (rückdatiert oder schon bezahlt) gehen standardmäßig NICHT per Mail raus
+    late = !!(paidCb.checked || back);
+    $('[data-x="issue"]', el).textContent = late ? 'Nachtragen' : 'Abschließen & senden';
+    $('[data-x="issueonly"]', el).textContent = late ? 'Nachtragen und zusätzlich an den Kunden senden' : 'Nur abschließen, ohne Versand';
+  };
+  let late = false;
+  dateIn.onchange = syncDate; paidCb.onchange = syncDate; syncDate();
   const collect = () => ({
     customer_id: $('[name=customer_id]', el).value || null, service_text: $('[name=service_text]', el).value.trim(),
     intro: $('[name=intro]', el).value.trim(), notes: $('[name=notes]', el).value.trim(), items: readItems(el),
@@ -682,18 +746,38 @@ function invoiceEditor(inv, presetCustomer = '') {
     const d = collect(); check(d);
     const c = customerById(d.customer_id);
     if (send && !c?.email) throw new Error('Der Kunde hat keine E-Mail-Adresse. Trag sie beim Kunden ein oder wähle „Nur abschließen“.');
-    if (!confirm(send ? `Rechnung abschließen und an ${c.email} senden?` : 'Rechnung abschließen, ohne sie zu versenden?')) return;
+    const issue_date = dateIn.value || todayISO();
+    if (issue_date < HISTORY_START || issue_date > todayISO()) throw new Error('Das Rechnungsdatum muss zwischen 01.01.2024 und heute liegen.');
+    const paid = paidCb.checked, paid_at = paidIn.value || issue_date;
+    if (paid && paid_at < issue_date) throw new Error('Das Zahlungsdatum liegt vor dem Rechnungsdatum.');
+    const what = `${issue_date < todayISO() ? ` mit Datum ${fmtDate(issue_date)}` : ''}${paid ? `, bezahlt am ${fmtDate(paid_at)}` : ''}`;
+    if (!confirm(send ? `Rechnung${what} abschließen und an ${c.email} senden?` : `Rechnung${what} abschließen, ohne sie zu versenden?`)) return;
     await save();
-    const r = await callFn('issue', { id, send });
+    const r = await callFn('issue', { id, send, issue_date, paid, paid_at });
     closeSheet(el); await loadAll();
     toast(send ? `Rechnung ${r.invoice.number} an ${c.email} gesendet` : `Rechnung ${r.invoice.number} abgeschlossen`);
   };
   bind(el, 'save', async () => { await save(); closeSheet(el); await loadAll(); toast('Entwurf gespeichert'); });
   bind(el, 'preview', async () => { await save(); await openPdf({ id, kind: 'invoice' }); loadAll(); });
-  bind(el, 'issue', () => doIssue(true));
-  bind(el, 'issueonly', () => doIssue(false));
+  bind(el, 'issue', () => doIssue(!late));
+  bind(el, 'issueonly', () => doIssue(late));
   bind(el, 'del', async () => { if (!confirm('Entwurf löschen?')) return; const { error } = await sb.from('invoices').delete().eq('id', id); if (error) throw error; closeSheet(el); await loadAll(); toast('Entwurf gelöscht'); });
   bind(el, 'newcust', () => customerEditor(null, c => { $('[name=customer_id]', el).innerHTML = custOptions(c.id); }));
+}
+
+function payDateSheet(inv) {
+  const min = [inv.issue_date, HISTORY_START].filter(Boolean).sort().pop();
+  const el = openSheet(`${inv.number} als bezahlt markieren`, `
+    <p class="mini" style="margin:0 0 14px">${esc(custName(inv))} · ${eur(inv.gross)}</p>
+    <label>Geld eingegangen am<input name="paid_at" type="date" value="${todayISO()}" min="${min}" max="${todayISO()}"></label>
+    <p class="mini" style="margin:0">Das Datum zählt für deine Umsatzstatistik (Geldeingang).</p>`,
+    `<button class="btn" data-x="ok">Als bezahlt markieren</button>`);
+  bind(el, 'ok', async () => {
+    const d = $('[name=paid_at]', el).value;
+    if (!d || d < min || d > todayISO()) throw new Error('Bitte ein Datum zwischen Rechnungsdatum und heute wählen.');
+    const { error } = await sb.from('invoices').update({ status: 'paid', paid_at: new Date(d + 'T12:00:00Z').toISOString() }).eq('id', inv.id);
+    if (error) throw error; closeSheet(el); await loadAll(); toast(`Bezahlt am ${fmtDate(d)}`);
+  });
 }
 
 function invoiceDetail(inv) {
@@ -744,7 +828,7 @@ function invoiceDetail(inv) {
   $$('[data-goto-quote]', el).forEach(b => b.onclick = () => { const q = quoteById(b.dataset.gotoQuote); closeSheet(el); setTimeout(() => quoteDetail(q), 220); });
   const after = async msg => { closeSheet(el); await loadAll(); if (msg) toast(msg); };
   bind(el, 'pdf', () => openPdf(inv));
-  bind(el, 'paid', async () => { const { error } = await sb.from('invoices').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('id', inv.id); if (error) throw error; await after('Als bezahlt markiert'); });
+  bind(el, 'paid', () => { closeSheet(el); setTimeout(() => payDateSheet(inv), 220); });
   bind(el, 'unpaid', async () => { const { error } = await sb.from('invoices').update({ status: 'open', paid_at: null }).eq('id', inv.id); if (error) throw error; await after('Wieder als offen markiert'); });
   bind(el, 'remind', async () => { if (!confirm('Zahlungserinnerung jetzt an den Kunden senden?')) return; const r = await callFn('remind', { id: inv.id }); await after(`Erinnerung an ${r.to} gesendet`); });
   bind(el, 'resend', async () => { if (!confirm('Die Rechnung noch einmal an den Kunden senden?')) return; const r = await callFn('send', { id: inv.id }); await after(`An ${r.to} gesendet`); });
@@ -757,6 +841,167 @@ function invoiceDetail(inv) {
     if (!confirm(`Rechnung ${inv.number} stornieren?\n\nEs wird eine Stornorechnung erstellt und an den Kunden geschickt.`)) return;
     const r = await callFn('correct', { id: inv.id, mode: 'cancel' });
     await after(r.mailError ? `Storniert, aber Versand fehlgeschlagen: ${r.mailError}` : 'Storniert und Stornorechnung versendet');
+  });
+}
+
+// ----- Statistik: Umsatz wie ein Kursverlauf -----
+const MONTHS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+const MONTHS_LONG = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+// Geldeingänge: bezahlte Rechnungen, gezählt am Zahlungstag (ohne Datum: Rechnungsdatum)
+function revenueEvents() {
+  return state.invoices.filter(i => i.kind === 'invoice' && i.status === 'paid')
+    .map(i => ({ inv: i, date: String(i.paid_at || i.issue_date || '').slice(0, 10), amount: +i.gross }))
+    .filter(e => e.date >= HISTORY_START);
+}
+const yearsRange = () => { const y0 = 2024, y1 = +todayISO().slice(0, 4); return Array.from({ length: y1 - y0 + 1 }, (_, i) => y0 + i); };
+// Umsatz je Monat (Index 0–11) für ein Jahr
+function monthly(year, events = revenueEvents()) {
+  const m = Array(12).fill(0);
+  for (const e of events) if (e.date.startsWith(year + '-')) m[+e.date.slice(5, 7) - 1] += e.amount;
+  return m.map(v => Math.round(v * 100) / 100);
+}
+const pct = (now, before) => before > 0 ? (now - before) / before * 100 : null;
+const fmtPct = p => p === null ? '' : `${p >= 0 ? '▲' : '▼'} ${Math.abs(p).toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`;
+
+function yearTiles() {
+  const ev = revenueEvents();
+  const today = todayISO(), cy = +today.slice(0, 4), cm = +today.slice(5, 7);
+  const tiles = yearsRange().reverse().map(y => {
+    const m = monthly(y, ev), prev = monthly(y - 1, ev);
+    const upto = y === cy ? cm : 12; // laufendes Jahr: gleicher Zeitraum im Vorjahr
+    const sum = m.reduce((a, b) => a + b, 0), cmp = prev.slice(0, upto).reduce((a, b) => a + b, 0);
+    const p = y > 2024 ? pct(sum, cmp) : null;
+    return `<button class="ytile" data-year="${y}"><span class="ylabel">${y}${y === cy ? ' · lfd.' : ''}</span><b>${eur(sum)}</b><span class="ydelta ${p === null ? '' : p >= 0 ? 'up' : 'down'}">${p === null ? (y === 2024 ? 'Start' : '–') : fmtPct(p)}</span>${sparkline(m.slice(0, upto))}</button>`;
+  }).join('');
+  const total = ev.reduce((a, e) => a + e.amount, 0);
+  return `<div class="ytiles"><button class="ytile all" data-year="all"><span class="ylabel">Gesamt seit 2024</span><b>${eur(total)}</b><span class="ydelta">Verlauf ansehen ›</span>${sparkline(cumSeries(ev).map(p => p.v))}</button>${tiles}</div>`;
+}
+function sparkline(vals) {
+  if (vals.length < 2) return '<svg class="spark" viewBox="0 0 100 28"></svg>';
+  const max = Math.max(...vals, 1), min = Math.min(...vals, 0);
+  const pts = vals.map((v, i) => `${(i / (vals.length - 1) * 100).toFixed(1)},${(26 - (v - min) / (max - min || 1) * 24).toFixed(1)}`).join(' ');
+  const up = vals[vals.length - 1] >= vals[0];
+  return `<svg class="spark" viewBox="0 0 100 28" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${up ? 'var(--ok)' : 'var(--accent)'}" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`;
+}
+// kumulierte Monatsreihe seit 01/2024
+function cumSeries(ev = revenueEvents()) {
+  const out = []; let acc = 0;
+  const today = todayISO(), cy = +today.slice(0, 4), cm = +today.slice(5, 7);
+  for (const y of yearsRange()) { const m = monthly(y, ev); for (let i = 0; i < 12; i++) { if (y === cy && i >= cm) break; acc += m[i]; out.push({ label: `${MONTHS[i]} ${String(y).slice(2)}`, long: `${MONTHS_LONG[i]} ${y}`, v: acc, m: m[i] }); } }
+  return out;
+}
+
+// Kurs-Chart (SVG) mit Fadenkreuz
+function stockChart(series, compare) {
+  const W = 640, H = 230, P = { l: 8, r: 8, t: 16, b: 26 };
+  const all = series.map(p => p.v).concat(compare ? compare.map(p => p.v) : []);
+  const max = Math.max(...all, 1) * 1.08, n = Math.max(series.length, compare?.length || 0, 2);
+  const X = i => P.l + i / (n - 1) * (W - P.l - P.r), Y = v => P.t + (1 - v / max) * (H - P.t - P.b);
+  const path = s => s.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(p.v).toFixed(1)}`).join(' ');
+  const up = series.length < 2 || series[series.length - 1].v >= (compare?.[series.length - 1]?.v ?? 0);
+  const col = up ? 'var(--ok)' : 'var(--accent)';
+  const area = series.length ? `${path(series)} L${X(series.length - 1).toFixed(1)},${H - P.b} L${X(0).toFixed(1)},${H - P.b} Z` : '';
+  const step = Math.ceil(n / 12);
+  const long = n > 13; // Gesamtverlauf: nur Jahresanfänge beschriften
+  const ticks = (series.length >= (compare?.length || 0) ? series : compare).map((p, i) => (long ? p.label.startsWith('Jan') : (i % step === 0 || i === n - 1)) ? `<span style="left:${(X(i) / W * 100).toFixed(2)}%" class="${i === 0 ? 'first' : i === n - 1 ? 'last' : ''}">${long ? '20' + p.label.slice(-2) : p.label}</span>` : '').join('');
+  const grid = [0.25, 0.5, 0.75].map(f => `<line x1="${P.l}" x2="${W - P.r}" y1="${Y(max / 1.08 * f)}" y2="${Y(max / 1.08 * f)}"/>`).join('');
+  return `<div class="chart" data-n="${n}">
+    <div class="chart-tip" hidden></div>
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="chart-svg">
+      <defs><linearGradient id="cg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${up ? '#3DD68C' : '#FF5757'}" stop-opacity=".32"/><stop offset="1" stop-color="${up ? '#3DD68C' : '#FF5757'}" stop-opacity="0"/></linearGradient></defs>
+      <g class="grid">${grid}</g>
+      ${compare?.length ? `<path d="${path(compare)}" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 4" vector-effect="non-scaling-stroke" opacity=".7"/>` : ''}
+      ${area ? `<path d="${area}" fill="url(#cg)"/><path d="${path(series)}" fill="none" stroke="${col}" stroke-width="2.4" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
+      <line class="cross" x1="0" x2="0" y1="${P.t}" y2="${H - P.b}" hidden/>
+      <circle class="dot" r="4.5" fill="${col}" stroke="var(--bg)" stroke-width="2" hidden/>
+    </svg><div class="ticks">${ticks}</div></div>`;
+}
+function wireChart(root, series, compare, fmtTip) {
+  const box = $('.chart', root); if (!box || !series.length) return;
+  const svg = $('svg', box), tip = $('.chart-tip', box), cross = $('.cross', svg), dot = $('.dot', svg);
+  const W = 640, H = 230, P = { l: 8, r: 8, t: 16, b: 26 };
+  const all = series.map(p => p.v).concat(compare ? compare.map(p => p.v) : []);
+  const max = Math.max(...all, 1) * 1.08, n = +box.dataset.n;
+  const show = ev => {
+    const r = svg.getBoundingClientRect();
+    const x = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left) / r.width * W;
+    const i = Math.max(0, Math.min(series.length - 1, Math.round((x - P.l) / (W - P.l - P.r) * (n - 1))));
+    const cx = P.l + i / (n - 1) * (W - P.l - P.r), cy = P.t + (1 - series[i].v / max) * (H - P.t - P.b);
+    cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.hidden = false;
+    dot.setAttribute('cx', cx); dot.setAttribute('cy', cy); dot.hidden = false;
+    tip.innerHTML = fmtTip(i); tip.hidden = false;
+    tip.style.left = Math.min(Math.max(cx / W * r.width, 70), r.width - 70) + 'px';
+  };
+  const hide = () => { cross.hidden = true; dot.hidden = true; tip.hidden = true; };
+  svg.addEventListener('pointermove', show); svg.addEventListener('pointerdown', show); svg.addEventListener('pointerleave', hide);
+  svg.addEventListener('touchmove', e => { show(e); e.preventDefault(); }, { passive: false });
+}
+
+function statsSheet(which) {
+  const ev = revenueEvents();
+  const today = todayISO(), cy = +today.slice(0, 4), cm = +today.slice(5, 7);
+  const isAll = which === 'all';
+  const y = isAll ? null : +which;
+  const upto = isAll ? null : (y === cy ? cm : 12);
+  let series, compare = null, total, cmpTotal = null, months, title;
+  if (isAll) {
+    series = cumSeries(ev); total = ev.reduce((a, e) => a + e.amount, 0); title = 'Umsatz seit 2024';
+    months = series.map(p => ({ label: p.long, v: p.m })).reverse();
+  } else {
+    const m = monthly(y, ev), pm = monthly(y - 1, ev);
+    let acc = 0; series = m.slice(0, upto).map((v, i) => ({ label: MONTHS[i], long: `${MONTHS_LONG[i]} ${y}`, v: (acc += v), m: v }));
+    if (y > 2024) { let a2 = 0; compare = pm.map((v, i) => ({ label: MONTHS[i], long: `${MONTHS_LONG[i]} ${y - 1}`, v: (a2 += v), m: v })); }
+    total = acc; cmpTotal = y > 2024 ? pm.slice(0, upto).reduce((a, b) => a + b, 0) : null;
+    months = m.slice(0, upto).map((v, i) => ({ label: MONTHS_LONG[i], v, prev: y > 2024 ? pm[i] : null })).reverse();
+    title = `Umsatz ${y}`;
+  }
+  const p = cmpTotal !== null ? pct(total, cmpTotal) : null;
+  const inScope = e => isAll || e.date.startsWith(y + '-');
+  const evs = ev.filter(inScope);
+  const activeMonths = isAll ? Math.max(series.length, 1) : upto;
+  const best = months.reduce((b, x) => (x.v > (b?.v ?? -1) ? x : b), null);
+  const maxM = Math.max(...months.map(x => x.v), 1);
+  // Quartale
+  const quarters = isAll ? null : [0, 1, 2, 3].map(q => monthly(y, ev).slice(q * 3, q * 3 + 3).reduce((a, b) => a + b, 0));
+  // Kunden
+  const byCust = {}; for (const e of evs) { const k = e.inv.customer_id || 'none'; byCust[k] = (byCust[k] || 0) + e.amount; }
+  const top = Object.entries(byCust).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  // offene Forderungen (Rechnungen dieses Zeitraums)
+  const openInv = state.invoices.filter(i => i.kind === 'invoice' && i.status === 'open' && (isAll || String(i.issue_date).startsWith(y + '-')));
+  const openSum = openInv.reduce((a, i) => a + +i.gross, 0);
+  const firstDates = {}; for (const i of state.invoices.filter(i => i.kind === 'invoice' && ['open', 'paid'].includes(i.status) && i.issue_date)) { const k = i.customer_id; if (!firstDates[k] || i.issue_date < firstDates[k]) firstDates[k] = i.issue_date; }
+  const newCust = isAll ? Object.keys(firstDates).length : Object.values(firstDates).filter(d => d.startsWith(y + '-')).length;
+  const mrr = state.recurring.filter(r => r.active).reduce((a, r) => a + totals(r.items).gross / (STEP_M[r.interval] || 1), 0);
+  const yearsBars = isAll ? yearsRange().map(yy => ({ label: String(yy), v: monthly(yy, ev).reduce((a, b) => a + b, 0) })).reverse() : null;
+  const maxY = yearsBars ? Math.max(...yearsBars.map(x => x.v), 1) : 1;
+  const el = openSheet(title, `
+    <div class="chips st-years">${[...yearsRange().map(String), 'all'].map(k => `<button class="${String(which) === k ? 'on' : ''}" data-sy="${k}">${k === 'all' ? 'Alle' : k}</button>`).join('')}</div>
+    <div class="st-head">
+      <div class="big">${eur(total)}</div>
+      ${p !== null ? `<span class="ydelta big-d ${p >= 0 ? 'up' : 'down'}">${fmtPct(p)} <small>ggü. ${y - 1}${y === cy ? ' (gleicher Zeitraum)' : ''}</small></span>` : `<span class="ydelta big-d"><small>${isAll ? `${evs.length} bezahlte Rechnungen` : y === 2024 ? 'Erstes Jahr' : ''}</small></span>`}
+    </div>
+    ${stockChart(series, compare)}
+    ${compare ? `<div class="legend"><span><i style="background:var(--ok)"></i>${y}</span><span><i class="dash"></i>${y - 1}</span></div>` : ''}
+    <div class="stats st-kpi">
+      <div class="stat"><span>Ø pro Monat</span><b>${eur(total / activeMonths)}</b></div>
+      <div class="stat"><span>Bester Monat</span><b>${best && best.v ? eur(best.v) : '–'}</b><small class="mini">${best && best.v ? esc(best.label) : ''}</small></div>
+      <div class="stat"><span>Bezahlte Rechnungen</span><b>${evs.length}</b></div>
+      <div class="stat ${openSum ? 'bad' : ''}"><span>Noch offen</span><b>${eur(openSum)}</b></div>
+      <div class="stat"><span>${isAll ? 'Kunden' : 'Neue Kunden'}</span><b>${newCust}</b></div>
+      <div class="stat"><span>Wiederkehrend / Monat</span><b>${eur(mrr)}</b></div>
+    </div>
+    ${quarters ? `<h3 class="sub">Quartale</h3><div class="stats st-q">${quarters.map((v, i) => `<div class="stat"><span>Q${i + 1}</span><b>${eur(v)}</b></div>`).join('')}</div>` : ''}
+    ${yearsBars ? `<h3 class="sub">Jahre</h3><div class="mbars" style="margin-bottom:18px">${yearsBars.map((x, i) => { const prev = yearsBars[i + 1]; const pp = prev ? pct(x.v, +x.label === cy ? monthly(cy - 1, ev).slice(0, cm).reduce((a, b) => a + b, 0) : prev.v) : null; return `<button class="mbar as-btn" data-sy="${x.label}"><span class="ml">${x.label}${+x.label === cy ? ' (lfd.)' : ''}</span><span class="mt"><i style="width:${(x.v / maxY * 100).toFixed(1)}%"></i></span><b>${eur(x.v)}</b><small class="${pp === null ? '' : pp >= 0 ? 'up' : 'down'}">${pp === null ? '' : fmtPct(pp)}</small></button>`; }).join('')}</div>` : ''}
+    <h3 class="sub">Monate</h3>
+    <div class="mbars">${months.map(x => `<div class="mbar"><span class="ml">${esc(x.label)}</span><span class="mt"><i style="width:${(x.v / maxM * 100).toFixed(1)}%"></i></span><b>${eur(x.v)}</b>${x.prev !== null && x.prev !== undefined ? `<small class="${x.v >= x.prev ? 'up' : 'down'}">${x.prev ? fmtPct(pct(x.v, x.prev)) : ''}</small>` : ''}</div>`).join('') || '<p class="mini">Noch keine Umsätze.</p>'}</div>
+    <h3 class="sub" style="margin-top:18px">Umsatz nach Kunden</h3>
+    <div class="mbars">${top.map(([k, v]) => `<div class="mbar"><span class="ml">${esc(customerById(k)?.name || 'Ohne Kunde')}</span><span class="mt"><i style="width:${(v / (top[0][1] || 1) * 100).toFixed(1)}%;background:var(--info)"></i></span><b>${eur(v)}</b><small>${total ? Math.round(v / total * 100) + ' %' : ''}</small></div>`).join('') || '<p class="mini">Noch keine Umsätze.</p>'}</div>
+    <p class="mini" style="margin-top:16px">Gezählt werden Geldeingänge: bezahlte Rechnungen am Zahlungstag (ohne Zahlungsdatum: am Rechnungsdatum). Ausgaben erfasst das Portal nicht – für eine vollständige Einnahmen-Überschuss-Rechnung brauchst du zusätzlich deine Belege.</p>`);
+  el.querySelector('.sheet').classList.add('wide');
+  $$('[data-sy]', el).forEach(b => b.onclick = () => { closeSheet(el); statsSheet(b.dataset.sy); });
+  wireChart(el, series, compare, i => {
+    const pnt = series[i]; const c = compare?.[i];
+    return `<b>${esc(pnt.long)}</b><span>${eur(pnt.m)} im Monat</span><span>${eur(pnt.v)} kumuliert</span>${c ? `<span class="mini">${y - 1}: ${eur(c.v)}</span>` : ''}`;
   });
 }
 
@@ -882,6 +1127,7 @@ function quoteEditor(q, presetCustomer = '') {
     <div class="grid2">
       <label>Leistungszeitraum (optional)<input name="service_text" value="${esc(q.service_text)}" placeholder="z. B. ab Dezember 2026"></label>
       <label>Gültig bis<input name="valid_until" type="date" value="${esc(q.valid_until || '')}"></label>
+      ${q.number ? '' : `<label>Angebotsdatum<input name="q_issue_date" type="date" value="${todayISO()}" min="${HISTORY_START}" max="${todayISO()}"></label>`}
     </div>
     <p class="mini" style="margin:-6px 0 14px">Leer lassen = ${esc(S().quote_valid_days)} Tage ab Versand.</p>
     <label>Einleitungstext<textarea name="intro" rows="2">${esc(q.intro)}</textarea></label>
@@ -916,7 +1162,7 @@ function quoteEditor(q, presetCustomer = '') {
     if (send && !c?.email) throw new Error('Der Kunde hat keine E-Mail-Adresse. Trag sie beim Kunden ein oder wähle „Nur abschließen“.');
     if (!confirm(send ? `Angebot ${sent ? 'erneut ' : ''}an ${c.email} senden?` : 'Angebot abschließen, ohne es zu versenden?')) return;
     await save();
-    const r = await callFn('quote_issue', { id, send });
+    const r = await callFn('quote_issue', { id, send, issue_date: $('[name=q_issue_date]', el)?.value || undefined });
     closeSheet(el); await loadAll();
     toast(send ? `Angebot ${r.quote.number} an ${c.email} gesendet` : `Angebot ${r.quote.number} abgeschlossen`);
   };
@@ -1100,6 +1346,18 @@ function viewRecurring() {
     <button class="btn fab" data-fab>+ Abo</button>`;
 }
 
+function backfillChoice(n, nextFuture, apply) {
+  const el = openSheet('Startdatum liegt in der Vergangenheit', `
+    <p style="margin:0 0 16px">Bis heute fallen <b>${n} ${n === 1 ? 'Abrechnungszeitraum' : 'Abrechnungszeiträume'}</b> an. Wie sollen sie erfasst werden? <span class="mini">Es geht dabei keine E-Mail an den Kunden.</span></p>
+    <div class="actions">
+      <button class="btn" data-x="paid">${n} Rechnungen als bezahlt nachtragen</button>
+      <button class="btn ghost" data-x="open">${n} Rechnungen als offen nachtragen</button>
+      <button class="btn ghost" data-x="skip">Nichts nachtragen – erste Rechnung am ${fmtDate(nextFuture)}</button>
+    </div>
+    <p class="mini" style="margin:0">Nachgetragene Rechnungen bekommen jeweils den ersten Werktag ihres Zeitraums als Rechnungsdatum.</p>`);
+  for (const mode of ['paid', 'open', 'skip']) bind(el, mode, async () => { closeSheet(el); await apply(mode); });
+}
+
 function firstOfNextMonth() { const [y, m] = todayISO().split('-').map(Number); return new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10); }
 
 function recurringEditor(r) {
@@ -1110,7 +1368,7 @@ function recurringEditor(r) {
     <label>Bezeichnung (optional, erscheint auf der Rechnung)<input name="title" value="${esc(r.title)}" placeholder="z. B. Hosting & Betreuung"></label>
     <div class="grid2">
       <label>Rhythmus<select name="interval">${Object.entries(INTERVALS).map(([k, l]) => `<option value="${k}" ${r.interval === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-      <label>Nächste Rechnung am<input name="next_date" type="date" value="${esc(r.next_date)}"></label>
+      <label>Nächste Rechnung am<input name="next_date" type="date" value="${esc(r.next_date)}" min="${HISTORY_START}"></label>
     </div>
     <h3 class="sub">Positionen je Rechnung</h3>
     ${itemsEditor(r.items)}
@@ -1133,7 +1391,21 @@ function recurringEditor(r) {
     if (isNew) { const { data, error } = await sb.from('recurring').insert(d).select().single(); if (error) throw error; r.id = data.id; }
     else { const { error } = await sb.from('recurring').update(d).eq('id', r.id); if (error) throw error; }
   };
-  bind(el, 'save', async () => { await save(); closeSheet(el); await loadAll(); toast('Abo gespeichert'); });
+  bind(el, 'save', async () => {
+    const d = collect();
+    if (d.next_date && d.next_date < HISTORY_START) throw new Error('Abos können höchstens bis 01.01.2024 zurückreichen.');
+    if (d.next_date && d.next_date <= todayISO() && d.active) {
+      // Startdatum liegt in der Vergangenheit: erst entscheiden, wie die vergangenen Zeiträume behandelt werden
+      let n = 0, x = d.next_date; while (x <= todayISO() && n < 120) { n++; x = addMonthsISO(x, STEP_M[d.interval] || 1); }
+      return backfillChoice(n, x, async mode => {
+        if (mode === 'skip') { $('[name=next_date]', el).value = x; await save(); }
+        else { await save(); const res = await callFn('recurring_backfill', { id: r.id, mode }); toast(`${res.created.length} Rechnungen nachgetragen (${res.created[0]} … ${res.created[res.created.length - 1]})`); }
+        closeSheet(el); await loadAll();
+        if (mode === 'skip') toast(`Abo gespeichert – erste Rechnung am ${fmtDate(x)}`);
+      });
+    }
+    await save(); closeSheet(el); await loadAll(); toast('Abo gespeichert');
+  });
   bind(el, 'now', async () => {
     if (!confirm('Jetzt die Rechnung für den nächsten Zeitraum erzeugen' + ($('[name=auto_send]', el).checked ? ' und versenden' : '') + '?')) return;
     await save(); const res = await callFn('run_recurring', { id: r.id });

@@ -1,5 +1,5 @@
 // Service Worker: App läuft auch ohne Internet (Ansicht des letzten Stands).
-const CACHE = "rechnungen-v2";
+const CACHE = "rechnungen-v3";
 const SUPABASE_JS = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js";
 const SHELL = ["./", "./index.html", "./config.js", "./manifest.webmanifest", "./icon.svg", "./icon-192.png", "./icon-512.png", SUPABASE_JS];
 

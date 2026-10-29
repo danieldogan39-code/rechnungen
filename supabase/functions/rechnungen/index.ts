@@ -1,7 +1,7 @@
 // Edge Function "rechnungen": PDF, Abschließen, Versand, Korrektur/Storno, Abos, Zahlungserinnerungen.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { buildInvoicePdf } from "./pdf.ts";
-import { addDays, addMonths, BILLING_SUFFIX, DEFAULTS, eur, fill, fmtDate, splitByBilling, today, totals } from "./util.ts";
+import { addDays, addMonths, BILLING_SUFFIX, DEFAULTS, eur, fill, fmtDate, keepItem, positions, splitByBilling, today, totals } from "./util.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
@@ -203,9 +203,9 @@ async function issue(uid: string, id: string, send: boolean, opt: { issueDate?: 
   if (!inv.customer_id) throw new UserError("Bitte einen Kunden wählen.");
   const cust = await getCustomer(uid, inv.customer_id);
   const small = isOn(s.small_business);
-  const items = (inv.items ?? []).filter((i: Any) => i.description || Number(i.price))
+  const items = (inv.items ?? []).filter(keepItem)
     .map((i: Any) => (small ? { ...i, vat: 0 } : i));
-  if (!items.length) throw new UserError("Bitte mindestens eine Position eintragen.");
+  if (!positions(items).length) throw new UserError("Bitte mindestens eine Position eintragen.");
   if (!String(inv.service_text ?? "").trim()) throw new UserError("Bitte Leistungsdatum oder -zeitraum angeben.");
   if (send && !cust.email) throw new UserError("Für diesen Kunden ist keine E-Mail-Adresse hinterlegt.");
 
@@ -450,7 +450,7 @@ async function importInvoice(uid: string, b: Any) {
   const { data: dup } = await db.from("invoices").select("id").eq("user_id", uid).eq("number", number).maybeSingle();
   if (dup) throw new UserError(`Die Rechnungsnummer ${number} gibt es schon.`);
   const cust = await getCustomer(uid, b.customer_id);
-  const items = (Array.isArray(b.items) ? b.items : []).filter((i: Any) => i.description || Number(i.price));
+  const items = (Array.isArray(b.items) ? b.items : []).filter(keepItem);
   if (!items.length) throw new UserError("Bitte mindestens eine Position angeben.");
   const t = totals(items);
   const s = await getSettings(uid);
@@ -518,8 +518,8 @@ async function issueQuote(uid: string, id: string, send: boolean, issueDateIn?: 
   if (!q.customer_id) throw new UserError("Bitte einen Kunden wählen.");
   const cust = await getCustomer(uid, q.customer_id);
   const small = isOn(s.small_business);
-  const items = (q.items ?? []).filter((i: Any) => i.description || Number(i.price)).map((i: Any) => (small ? { ...i, vat: 0 } : i));
-  if (!items.length) throw new UserError("Bitte mindestens eine Position eintragen.");
+  const items = (q.items ?? []).filter(keepItem).map((i: Any) => (small ? { ...i, vat: 0 } : i));
+  if (!positions(items).length) throw new UserError("Bitte mindestens eine Position eintragen.");
   if (send && !cust.email) throw new UserError("Für diesen Kunden ist keine E-Mail-Adresse hinterlegt.");
   const t = totals(items, small);
   const date = pastDate(issueDateIn, "Das Angebotsdatum") ?? today();

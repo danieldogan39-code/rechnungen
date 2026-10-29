@@ -2,7 +2,7 @@
 import { degrees, PDFDocument, type PDFFont, type PDFPage, rgb, StandardFonts } from "npm:pdf-lib@1.17.1";
 import fontkit from "npm:@pdf-lib/fontkit@1.1.1";
 import qrcode from "npm:qrcode-generator@2.0.4";
-import { BILLING_LABEL, BILLING_SUFFIX, billingOf, eur, fmtDate, formatIban, type Item, lineNet, qty, splitByBilling, totals } from "./util.ts";
+import { BILLING_LABEL, BILLING_SUFFIX, billingOf, eur, fmtDate, formatIban, type Item, lineNet, positions, qty, splitByBilling, totals } from "./util.ts";
 
 const MM = 72 / 25.4;
 const W = 595.28;
@@ -315,8 +315,9 @@ export async function buildInvoicePdf({ inv, company: c, ref, fonts }: PdfInput)
   y -= 10;
 
   // ---------- Positionen ----------
-  const hasDisc = items.some((i) => Number(i.discount) > 0);
-  const rates = new Set(items.map((i) => Number(i.vat) || 0));
+  const rows = positions(items);
+  const hasDisc = rows.some((i) => Number(i.discount) > 0);
+  const rates = new Set(rows.map((i) => Number(i.vat) || 0));
   const showVat = !small && rates.size > 1;
   // Spalten von rechts nach links
   const cols: { key: string; label: string; right: number; w: number }[] = [];
@@ -349,11 +350,13 @@ export async function buildInvoicePdf({ inv, company: c, ref, fonts }: PdfInput)
   };
   head();
 
-  items.forEach((it, idx) => {
+  rows.forEach((it, idx) => {
     const raw = clean(it.description || "–").split("\n");
     const titleLines = wrap(raw[0], fm, 9.5, descW);
     const detailLines = raw.length > 1 ? wrap(raw.slice(1).join("\n"), f, 8.8, descW) : [];
-    const rowH = titleLines.length * 13 + detailLines.length * 12 + 12;
+    const discLabel = Number(it.discount) > 0 && String(it.discount_label ?? "").trim()
+      ? `${String(it.discount_label).trim()}: −${qty(Number(it.discount))} %` : "";
+    const rowH = titleLines.length * 13 + detailLines.length * 12 + (discLabel ? 12 : 0) + 12;
     if (y - rowH + 10 < BOTTOM) {
       newPage();
       head();
@@ -366,6 +369,7 @@ export async function buildInvoicePdf({ inv, company: c, ref, fonts }: PdfInput)
       T(page, ln, descX, dy + 0.5, { size: 8.8, color: muted });
       dy -= 12;
     });
+    if (discLabel) T(page, discLabel, descX, dy + 0.5, { size: 8.5, font: fm, color: accent });
     const o = { size: 9.5, align: "right" as const, color: body };
     T(page, qty(Number(it.quantity)), col("qty").right, top, o);
     T(page, it.unit ?? "", col("unit").right - col("unit").w + 3 * MM, top, { size: 9.5, color: body });
@@ -392,8 +396,24 @@ export async function buildInvoicePdf({ inv, company: c, ref, fonts }: PdfInput)
   const groups = isQuote ? splitByBilling(items) : [{ billing: "once", items }];
   groups.forEach((g, gi) => {
     const gt = totals(g.items, small);
-    const sumRows = small ? 0 : 1 + gt.vatLines.length;
+    const dRows = gt.discounts.filter((d) => d.amount !== 0);
+    const sumRows = (small ? 0 : 1 + gt.vatLines.length) + (dRows.length ? dRows.length + 1 : 0);
     if (y - (sumRows * 15 + 40) < BOTTOM) newPage();
+    if (dRows.length) {
+      const suf = BILLING_SUFFIX[g.billing];
+      sumRow(`Zwischensumme${small ? "" : " netto"}`, eur(gt.subtotal) + suf);
+      for (const d of dRows) {
+        const k = `${d.label}${d.mode === "percent" ? ` (${qty(d.value)} %)` : ""}`;
+        const v = `${d.amount >= 0 ? "−" : "+"}${eur(Math.abs(d.amount))}${suf}`;
+        const room = RIGHT - 3 * MM - fm.widthOfTextAtSize(clean(v), 9.5) - 4 * MM - (lx + 3 * MM);
+        const fits = (x: string) => fm.widthOfTextAtSize(clean(x), 9.5) <= room;
+        const lines = wrap(d.label, fm, 9.5, room);
+        const shown = fits(k) ? k : fits(d.label) ? d.label : lines[0] + "…";
+        T(page, shown, lx + 3 * MM, y, { size: 9.5, color: accent, font: fm });
+        T(page, v, RIGHT - 3 * MM, y, { size: 9.5, color: accent, font: fm, align: "right" });
+        y -= 15;
+      }
+    }
     if (!small) {
       sumRow(groups.length > 1 ? `${BILLING_LABEL[g.billing]} netto` : "Summe netto", eur(gt.net) + BILLING_SUFFIX[g.billing]);
       for (const v of gt.vatLines) sumRow(`zzgl. USt ${qty(v.rate)} %`, eur(v.amount) + BILLING_SUFFIX[g.billing]);

@@ -16,10 +16,16 @@ adb shell dumpsys window | grep -E "mCurrentFocus" > "$OUT/after-back.txt" || tr
 adb shell am force-stop $PKG
 adb shell svc wifi disable
 adb shell svc data disable
-sleep 3
+sleep 25   # Google-Dienste im Emulator starten nach dem Netzwechsel neu
 adb shell monkey -p $PKG -c android.intent.category.LAUNCHER 1 > /dev/null
 sleep 20
+if ! adb shell dumpsys window | grep mCurrentFocus | grep -q $PKG; then
+  echo "App nicht im Vordergrund – zweiter Start" | tee "$OUT/offline-retry.txt"
+  adb shell monkey -p $PKG -c android.intent.category.LAUNCHER 1 > /dev/null
+  sleep 20
+fi
 adb exec-out screencap -p > "$OUT/2-start-offline.png"
+adb shell dumpsys window | grep -E "mCurrentFocus" > "$OUT/offline-focus.txt" || true
 adb shell svc wifi enable
 adb shell svc data enable
 adb logcat -d > "$OUT/logcat-full.txt"

@@ -41,7 +41,14 @@ h1,h2,h3{margin:0;color:var(--ink);font-weight:600;letter-spacing:-.02em}
 b,strong{color:var(--ink);font-weight:600}
 ::selection{background:rgba(255,87,87,.32);color:#fff}
 :focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:8px}
-.tnum,.stat b,.row-side b,.big,.totals{font-variant-numeric:tabular-nums}
+.tnum,.stat b,.row-side b,.big,.discs-h{font-size:13px;font-weight:600;color:var(--muted);margin:14px 0 8px}
+.disc{display:grid;grid-template-columns:1fr 84px 64px auto auto;gap:8px;align-items:center;margin-bottom:8px}
+.disc .d-bill{min-width:0}
+.disc:not(:has(.d-bill)){grid-template-columns:1fr 84px 64px auto}
+@media (max-width:520px){.disc,.disc:not(:has(.d-bill)){grid-template-columns:1fr 84px auto;padding-bottom:10px;border-bottom:1px solid var(--line)}.disc .d-name,.disc .t-name{grid-column:1/-1}.disc .d-bill{grid-column:1/-1}.disc.dt{grid-template-columns:1fr 84px auto}}
+.i-dl{display:block;margin:10px 0 0;font-size:12.5px;color:var(--muted)}.i-dl input{margin-top:5px}
+.totals .dl span{color:var(--accent)}
+.totals{font-variant-numeric:tabular-nums}
 
 /* Kopf */
 .top{position:sticky;top:0;z-index:5;background:rgba(14,25,42,.78);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border-bottom:1px solid var(--line);padding:calc(12px + var(--safe-area-inset-top,env(safe-area-inset-top))) 20px 12px}
@@ -288,6 +295,7 @@ const FN_URL = configured ? CFG.supabaseUrl.replace(/\/$/, '') + '/functions/v1/
 const DEFAULTS = {
   prefix: 'RE', number_year: false, number_digits: 4, number_start: 1, small_business: false,
   payment_days: 14, accent: '#F44C4C',
+  discount_types: [{ name: 'Bestandskundenrabatt', mode: 'percent', value: 10 }],
   intro: 'Vielen Dank für Ihren Auftrag. Wir stellen Ihnen folgende Leistungen in Rechnung:',
   closing: 'Vielen Dank für die gute Zusammenarbeit!',
   bcc_self: true, reminders_enabled: true, reminder_interval: 7, max_reminders: 3,
@@ -334,21 +342,34 @@ const BILL_SUFFIX = { once: '', monthly: ' / Monat', quarterly: ' / Quartal', ye
 const billingOf = it => (it && BILLING[it.billing] ? it.billing : 'once');
 function splitByBilling(items = []) {
   const g = {}; for (const it of items) (g[billingOf(it)] ||= []).push(it);
-  return ['once', 'monthly', 'quarterly', 'yearly'].filter(k => g[k]?.length).map(k => ({ billing: k, items: g[k] }));
+  return ['once', 'monthly', 'quarterly', 'yearly'].filter(k => g[k]?.some(it => it?.type !== 'discount')).map(k => ({ billing: k, items: g[k] }));
 }
 const splitText = items => { const gs = splitByBilling(items); return gs.length ? gs.map(g => eur(totals(g.items).gross) + BILL_SUFFIX[g.billing]).join(' + ') : eur(0); };
 
 const isOn = v => v === true || v === 'true';
 const small = () => isOn(state.settings.small_business);
 const lineNet = it => r2((+it.quantity || 0) * (+it.price || 0) * (1 - Math.min(Math.max(+it.discount || 0, 0), 100) / 100));
+// Gesamtrabatt-Zeilen stehen mit type: 'discount' in den Positionen (wie auf dem Server)
+const isDiscLine = it => it?.type === 'discount';
+const positionsOf = (items = []) => items.filter(it => !isDiscLine(it));
 function totals(items = [], smallBusiness = small()) {
-  let net = 0; const byRate = {};
-  for (const it of items) { const line = lineNet(it); net += line; const rate = smallBusiness ? 0 : (+it.vat || 0); byRate[rate] = (byRate[rate] || 0) + line; }
-  net = r2(net);
-  const vatLines = Object.entries(byRate).map(([rate, base]) => ({ rate: +rate, base: r2(base), amount: r2(base * +rate / 100) })).filter(v => v.rate > 0).sort((a, b) => b.rate - a.rate);
+  let sub = 0; const byRate = {};
+  for (const it of positionsOf(items)) { const line = lineNet(it); sub += line; const rate = smallBusiness ? 0 : (+it.vat || 0); byRate[rate] = (byRate[rate] || 0) + line; }
+  sub = r2(sub);
+  const abs = Math.abs(sub), sign = sub < 0 ? -1 : 1; let left = abs;
+  const discounts = items.filter(isDiscLine).map(d => {
+    const mode = d.mode === 'amount' ? 'amount' : 'percent', value = Math.max(+d.value || 0, 0);
+    const a = r2(Math.min(mode === 'amount' ? value : abs * Math.min(value, 100) / 100, left)); left = r2(left - a);
+    return { label: String(d.description || '').trim() || 'Rabatt', mode, value, amount: r2(a * sign) };
+  });
+  const discountTotal = r2(discounts.reduce((s, d) => s + d.amount, 0));
+  const net = r2(sub - discountTotal), factor = sub ? net / sub : 1;
+  const vatLines = Object.entries(byRate).map(([rate, base]) => ({ rate: +rate, base: r2(base * factor), amount: r2(base * factor * +rate / 100) })).filter(v => v.rate > 0).sort((a, b) => b.rate - a.rate);
   const vat = r2(vatLines.reduce((s, v) => s + v.amount, 0));
-  return { net, vat, gross: r2(net + vat), vatLines };
+  return { net, vat, gross: r2(net + vat), vatLines, subtotal: sub, discounts, discountTotal };
 }
+const discText = d => `${d.label}${d.mode === 'percent' ? ` (${fmtNum(d.value, 3)} %)` : ''}`;
+const discTypes = () => (Array.isArray(S().discount_types) ? S().discount_types : []).filter(t => t?.name);
 
 const ICON = {
   doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>',
@@ -840,38 +861,83 @@ function itemRow(it = {}, withBilling = false) {
       <label class="vat-col">USt<select class="i-vat">${[19, 7, 0].map(v => `<option value="${v}" ${+vat === v ? 'selected' : ''}>${v} %</option>`).join('')}</select></label>
       <button type="button" class="icon-btn del" data-del-item aria-label="Position entfernen">${ICON.close}</button>
     </div>
+    <label class="i-dl" ${+it.discount ? '' : 'hidden'}>Name des Rabatts<input class="i-dlabel" list="dtypes" value="${esc(it.discount_label || '')}" placeholder="z. B. Bestandskundenrabatt (optional)"></label>
     <div class="item-foot"><button type="button" class="linkbtn tpl-save" data-save-tpl>☆ Als Vorlage speichern</button><span class="i-line"></span></div>
   </div>`;
 }
+// Gesamtrabatt-Zeile (gilt für alle Positionen bzw. bei Angeboten für die gewählte Abrechnungsart)
+function discRow(d = {}, withBilling = false) {
+  return `<div class="disc">
+    <input class="d-name" list="dtypes" value="${esc(d.description || '')}" placeholder="Name, z. B. Bestandskundenrabatt" aria-label="Name des Rabatts">
+    <input class="d-val" inputmode="decimal" value="${esc(+d.value ? fmtNum(d.value, 3) : '')}" placeholder="0" aria-label="Rabatt">
+    <select class="d-mode" aria-label="Prozent oder Betrag"><option value="percent" ${d.mode !== 'amount' ? 'selected' : ''}>%</option><option value="amount" ${d.mode === 'amount' ? 'selected' : ''}>€</option></select>
+    ${withBilling ? `<select class="d-bill" aria-label="Gilt für">${Object.entries({ once: 'auf Einmaliges', monthly: 'auf Monatliches', quarterly: 'auf Vierteljährliches', yearly: 'auf Jährliches' }).map(([k, l]) => `<option value="${k}" ${billingOf(d) === k ? 'selected' : ''}>${l}</option>`).join('')}</select>` : ''}
+    <button type="button" class="icon-btn" data-del-disc aria-label="Rabatt entfernen">${ICON.close}</button>
+  </div>`;
+}
 function itemsEditor(items, withBilling = false) {
+  const pos = positionsOf(items || []), discs = (items || []).filter(isDiscLine);
   return `<datalist id="units">${UNITS.map(u => `<option value="${u}">`).join('')}</datalist>
-    <div class="items" data-billing="${withBilling ? 1 : 0}">${(items?.length ? items : [{}]).map(it => itemRow(it, withBilling)).join('')}</div>
-    <div class="bar" style="margin-bottom:6px"><button type="button" class="btn sm" data-pick-tpl>+ Aus Vorlagen</button><button type="button" class="btn ghost sm" data-add-item>+ Leere Position</button></div>
+    <datalist id="dtypes">${discTypes().map(t => `<option value="${esc(t.name)}">${t.mode === 'amount' ? eur(t.value) : fmtNum(t.value, 3) + ' %'}</option>`).join('')}</datalist>
+    <div class="items" data-billing="${withBilling ? 1 : 0}">${(pos.length ? pos : [{}]).map(it => itemRow(it, withBilling)).join('')}</div>
+    <div class="bar" style="margin-bottom:6px"><button type="button" class="btn sm" data-pick-tpl>+ Aus Vorlagen</button><button type="button" class="btn ghost sm" data-add-item>+ Leere Position</button><button type="button" class="btn ghost sm" data-add-disc>+ Gesamtrabatt</button></div>
+    <div class="discs">${discs.length ? '<div class="discs-h">Gesamtrabatt</div>' : ''}${discs.map(d => discRow(d, withBilling)).join('')}</div>
     <div class="totals"></div>`;
 }
 function readItems(root) {
-  return $$('.item', root).map(el => ({
-    description: $('.i-desc', el).value.trim(), quantity: num($('.i-qty', el).value), unit: $('.i-unit', el).value.trim(),
-    price: num($('.i-price', el).value), discount: num($('.i-disc', el).value), vat: small() ? 0 : +$('.i-vat', el).value,
-    ...($('.i-bill', el) ? { billing: $('.i-bill', el).value } : {}),
-  })).filter(it => it.description || it.price);
+  const pos = $$('.item', root).map(el => {
+    const discount = num($('.i-disc', el).value), label = $('.i-dlabel', el)?.value.trim();
+    return {
+      description: $('.i-desc', el).value.trim(), quantity: num($('.i-qty', el).value), unit: $('.i-unit', el).value.trim(),
+      price: num($('.i-price', el).value), discount, vat: small() ? 0 : +$('.i-vat', el).value,
+      ...(discount && label ? { discount_label: label } : {}),
+      ...($('.i-bill', el) ? { billing: $('.i-bill', el).value } : {}),
+    };
+  }).filter(it => it.description || it.price);
+  const discs = $$('.disc', root).map(el => ({
+    type: 'discount', description: $('.d-name', el).value.trim() || 'Rabatt', mode: $('.d-mode', el).value, value: num($('.d-val', el).value),
+    ...($('.d-bill', el) ? { billing: $('.d-bill', el).value } : {}),
+  })).filter(d => d.value > 0);
+  return [...pos, ...discs];
 }
 function wireItems(root) {
   const box = $('.items', root);
   const wb = box.dataset.billing === '1';
   const update = () => {
-    $$('.item', root).forEach(el => { const l = lineNet({ quantity: num($('.i-qty', el).value), price: num($('.i-price', el).value), discount: num($('.i-disc', el).value) }); $('.i-line', el).textContent = l ? `= ${eur(l)}${small() ? '' : ' netto'}` : ''; });
-    const t = totals(readItems(root));
-    const groups = splitByBilling(readItems(root));
+    $$('.item', root).forEach(el => {
+      const d = num($('.i-disc', el).value);
+      const l = lineNet({ quantity: num($('.i-qty', el).value), price: num($('.i-price', el).value), discount: d });
+      $('.i-line', el).textContent = l ? `= ${eur(l)}${small() ? '' : ' netto'}` : '';
+      $('.i-dl', el).hidden = !d;
+    });
+    const all = readItems(root);
+    const t = totals(all);
+    const groups = splitByBilling(all);
+    const dRows = gt => gt.discounts.filter(d => d.amount).length ? `<div><span>Zwischensumme${small() ? '' : ' netto'}</span><span>${eur(gt.subtotal)}</span></div>${gt.discounts.filter(d => d.amount).map(d => `<div class="dl"><span>${esc(discText(d))}</span><span>−${eur(d.amount)}</span></div>`).join('')}` : '';
     if (wb && groups.some(g => g.billing !== 'once')) {
-      $('.totals', root).innerHTML = groups.map(g => { const gt = totals(g.items); return `<div class="g"><span>${g.billing === 'once' ? 'Einmalig' : INTERVALS[g.billing][0].toUpperCase() + INTERVALS[g.billing].slice(1)}</span><span>${eur(gt.gross)}${BILL_SUFFIX[g.billing]}</span></div>`; }).join('') + (small() ? '<div><span>ohne USt (§ 19 UStG)</span><span></span></div>' : '<div><span>jeweils inkl. USt</span><span></span></div>');
+      $('.totals', root).innerHTML = groups.map(g => { const gt = totals(g.items); return `${dRows(gt)}<div class="g"><span>${g.billing === 'once' ? 'Einmalig' : INTERVALS[g.billing][0].toUpperCase() + INTERVALS[g.billing].slice(1)}</span><span>${eur(gt.gross)}${BILL_SUFFIX[g.billing]}</span></div>`; }).join('') + (small() ? '<div><span>ohne USt (§ 19 UStG)</span><span></span></div>' : '<div><span>jeweils inkl. USt</span><span></span></div>');
       return;
     }
-    $('.totals', root).innerHTML = small() ? `<div class="g"><span>Gesamt</span><span>${eur(t.gross)}</span></div><div><span>ohne USt (§ 19 UStG)</span><span></span></div>` : `<div><span>Netto</span><span>${eur(t.net)}</span></div>${t.vatLines.map(v => `<div><span>USt ${v.rate} %</span><span>${eur(v.amount)}</span></div>`).join('')}<div class="g"><span>Gesamt</span><span>${eur(t.gross)}</span></div>`;
+    $('.totals', root).innerHTML = small() ? `${dRows(t)}<div class="g"><span>Gesamt</span><span>${eur(t.gross)}</span></div><div><span>ohne USt (§ 19 UStG)</span><span></span></div>` : `${dRows(t)}<div><span>Netto</span><span>${eur(t.net)}</span></div>${t.vatLines.map(v => `<div><span>USt ${v.rate} %</span><span>${eur(v.amount)}</span></div>`).join('')}<div class="g"><span>Gesamt</span><span>${eur(t.gross)}</span></div>`;
   };
   const grow = ta => { ta.style.height = 'auto'; ta.style.height = Math.max(44, ta.scrollHeight + 2) + 'px'; };
-  root.addEventListener('input', e => { if (e.target.closest('.item')) { if (e.target.matches('.i-desc')) grow(e.target); update(); } });
-  root.addEventListener('change', e => { if (e.target.closest('.item')) update(); });
+  // Rabattart gewählt → Standardwert übernehmen, wenn noch keiner eingetragen ist
+  const typeOf = name => discTypes().find(t => t.name.toLowerCase() === String(name || '').trim().toLowerCase());
+  const applyType = e => {
+    const t = typeOf(e.target.value); if (!t) return;
+    if (e.target.matches('.i-dlabel')) { const inp = $('.i-disc', e.target.closest('.item')); if (!num(inp.value) && t.mode !== 'amount') inp.value = fmtNum(t.value, 3); }
+    if (e.target.matches('.d-name')) { const row = e.target.closest('.disc'); if (!num($('.d-val', row).value)) { $('.d-val', row).value = fmtNum(t.value, t.mode === 'amount' ? 2 : 3); $('.d-mode', row).value = t.mode === 'amount' ? 'amount' : 'percent'; } }
+  };
+  root.addEventListener('input', e => { if (e.target.closest('.item, .disc')) { if (e.target.matches('.i-desc')) grow(e.target); if (e.target.matches('.i-dlabel, .d-name')) applyType(e); update(); } });
+  root.addEventListener('change', e => { if (e.target.closest('.item, .disc')) { if (e.target.matches('.i-dlabel, .d-name')) applyType(e); update(); } });
+  const discBox = $('.discs', root);
+  $('[data-add-disc]', root).onclick = () => {
+    if (!$('.discs-h', discBox)) discBox.insertAdjacentHTML('afterbegin', '<div class="discs-h">Gesamtrabatt</div>');
+    const t0 = discTypes()[0];
+    discBox.insertAdjacentHTML('beforeend', discRow(t0 && !$('.disc', discBox) ? { description: t0.name, mode: t0.mode, value: t0.value } : {}, wb));
+    $$('.d-name', discBox).pop().focus(); update();
+  };
+  discBox.addEventListener('click', e => { const d = e.target.closest('[data-del-disc]'); if (!d) return; d.closest('.disc').remove(); if (!$('.disc', discBox)) discBox.innerHTML = ''; update(); });
   $('[data-add-item]', root).onclick = () => { box.insertAdjacentHTML('beforeend', itemRow({ vat: $$('.i-vat', root).pop()?.value ?? 19 }, wb)); $$('.i-desc', root).pop().focus(); update(); };
   box.addEventListener('click', e => { const d = e.target.closest('[data-del-item]'); if (!d) return; d.closest('.item').remove(); if (!$('.item', root)) box.insertAdjacentHTML('beforeend', itemRow({}, wb)); update(); });
   $('[data-pick-tpl]', root).onclick = () => productPicker(p => {
@@ -958,7 +1024,7 @@ function invoiceEditor(inv, presetCustomer = '') {
   };
   const check = d => {
     if (!d.customer_id) throw new Error('Bitte einen Kunden wählen.');
-    if (!d.items.length) throw new Error('Bitte mindestens eine Position eintragen.');
+    if (!positionsOf(d.items).length) throw new Error('Bitte mindestens eine Position eintragen.');
     if (!d.service_text) throw new Error('Bitte Leistungsdatum oder -zeitraum angeben (Pflichtangabe).');
   };
   const doIssue = async send => {
@@ -1039,7 +1105,7 @@ function invoiceDetail(inv) {
       ${canAct && isInv && ['open', 'paid'].includes(inv.status) ? '<button class="btn ghost danger" data-x="cancel">Stornieren</button>' : ''}
     </div>
     <h3 class="sub">Positionen</h3>
-    <ul class="mini">${(inv.items || []).map(it => `<li>${esc(fmtNum(it.quantity, 3))} ${esc(it.unit || '')} · ${esc(it.description)} · ${eur(r2(it.quantity * it.price))}</li>`).join('')}</ul>
+    <ul class="mini">${positionsOf(inv.items || []).map(it => `<li>${esc(fmtNum(it.quantity, 3))} ${esc(it.unit || '')} · ${esc(it.description)} · ${eur(lineNet(it))}${+it.discount ? ` (−${fmtNum(it.discount, 3)} %${it.discount_label ? ' ' + esc(it.discount_label) : ''})` : ''}</li>`).join('')}${totals(inv.items || []).discounts.map(d => `<li style="color:var(--accent)">${esc(discText(d))} · −${eur(d.amount)}</li>`).join('')}</ul>
     <h3 class="sub" style="margin-top:14px">E-Mail-Verlauf</h3>
     ${logs.length ? `<ul class="mini">${logs.map(m => `<li>${fmtDateTime(m.sent_at)} · ${typeLabel[m.type] || m.type} an ${esc(m.recipient)} ${m.status === 'sent' ? '✓' : `<span style="color:var(--bad)">fehlgeschlagen: ${esc(m.error)}</span>`}</li>`).join('')}</ul>` : '<p class="mini">Noch keine E-Mails.</p>'}
   `);
@@ -1377,7 +1443,7 @@ function quoteEditor(q, presetCustomer = '') {
   const doIssue = async send => {
     const d = collect();
     if (!d.customer_id) throw new Error('Bitte einen Kunden wählen.');
-    if (!d.items.length) throw new Error('Bitte mindestens eine Position eintragen.');
+    if (!positionsOf(d.items).length) throw new Error('Bitte mindestens eine Position eintragen.');
     const c = customerById(d.customer_id);
     if (send && !c?.email) throw new Error('Der Kunde hat keine E-Mail-Adresse. Trag sie beim Kunden ein oder wähle „Nur abschließen“.');
     if (!confirm(send ? `Angebot ${sent ? 'erneut ' : ''}an ${c.email} senden?` : 'Angebot abschließen, ohne es zu versenden?')) return;
@@ -1402,9 +1468,9 @@ function quoteAcceptSheet(q, onDone) {
   const start = firstOfNextMonth();
   const el = openSheet(`Angebot ${q.number} umsetzen`, `
     <p class="mini" style="margin:0 0 14px">Der Kunde hat zugesagt? Dann lege ich das an:</p>
-    ${once ? `<div class="section"><h3>Rechnungsentwurf</h3><p class="hint" style="margin:0">Einmalige Positionen über <b>${eur(totals(once.items).gross)}</b> (${once.items.length} ${once.items.length === 1 ? 'Position' : 'Positionen'}). Du prüfst den Entwurf und schickst ihn ab.</p></div>` : ''}
+    ${once ? `<div class="section"><h3>Rechnungsentwurf</h3><p class="hint" style="margin:0">Einmalige Positionen über <b>${eur(totals(once.items).gross)}</b> (${positionsOf(once.items).length} ${positionsOf(once.items).length === 1 ? 'Position' : 'Positionen'}). Du prüfst den Entwurf und schickst ihn ab.</p></div>` : ''}
     ${subs.map(g => `<div class="section"><h3>Abo · ${INTERVALS[g.billing]}</h3>
-      <p class="hint">${eur(totals(g.items).gross)}${BILL_SUFFIX[g.billing]} · ${g.items.map(it => esc(String(it.description || '').split('\n')[0])).join(', ')}</p>
+      <p class="hint">${eur(totals(g.items).gross)}${BILL_SUFFIX[g.billing]} · ${positionsOf(g.items).map(it => esc(String(it.description || '').split('\n')[0])).join(', ')}</p>
       <label>Erste Abo-Rechnung am<input type="date" data-start="${g.billing}" value="${start}"></label>
       <label class="check" style="margin:0"><input type="checkbox" data-auto="${g.billing}" checked>Automatisch an den Kunden senden</label></div>`).join('')}`,
     `<button class="btn" data-x="go">Angebot annehmen &amp; anlegen</button>`);
@@ -1421,7 +1487,7 @@ function quoteAcceptSheet(q, onDone) {
       const d = $(`[data-start="${g.billing}"]`, el).value;
       if (!d) throw new Error('Bitte ein Startdatum für das Abo wählen.');
       const { error } = await db('recurring').insert({
-        customer_id: q.customer_id, title: `${String(g.items[0].description || '').split('\n')[0]}${g.items.length > 1 ? ` + ${g.items.length - 1} weitere` : ''}`,
+        customer_id: q.customer_id, title: `${String(positionsOf(g.items)[0].description || '').split('\n')[0]}${positionsOf(g.items).length > 1 ? ` + ${positionsOf(g.items).length - 1} weitere` : ''}`,
         items: g.items.map(({ billing, ...it }) => it), interval: g.billing, next_date: d,
         auto_send: $(`[data-auto="${g.billing}"]`, el).checked, active: true, quote_id: q.id,
       });
@@ -1462,7 +1528,7 @@ function quoteDetail(q) {
       ${canAct && ['accepted', 'declined'].includes(q.status) && !done ? '<button class="btn ghost" data-x="reopen">Wieder auf offen setzen</button>' : ''}
     </div>
     <h3 class="sub">Positionen</h3>
-    <ul class="mini">${(q.items || []).map(it => `<li>${esc(fmtNum(it.quantity, 3))} ${esc(it.unit || '')} · ${esc(String(it.description || '').split('\n')[0])} · ${eur(lineNet(it))}${BILL_SUFFIX[billingOf(it)]}</li>`).join('')}</ul>
+    <ul class="mini">${positionsOf(q.items || []).map(it => `<li>${esc(fmtNum(it.quantity, 3))} ${esc(it.unit || '')} · ${esc(String(it.description || '').split('\n')[0])} · ${eur(lineNet(it))}${BILL_SUFFIX[billingOf(it)]}</li>`).join('')}${splitByBilling(q.items || []).flatMap(g => totals(g.items).discounts.map(d => `<li style="color:var(--accent)">${esc(discText(d))} · −${eur(d.amount)}${BILL_SUFFIX[g.billing]}</li>`)).join('')}</ul>
     <h3 class="sub" style="margin-top:14px">E-Mail-Verlauf</h3>
     ${logs.length ? `<ul class="mini">${logs.map(m => `<li>${fmtDateTime(m.sent_at)} · an ${esc(m.recipient)} ${m.status === 'sent' ? '✓' : `<span style="color:var(--bad)">fehlgeschlagen: ${esc(m.error)}</span>`}</li>`).join('')}</ul>` : '<p class="mini">Noch keine E-Mails.</p>'}`);
   $$('[data-goto-inv]', el).forEach(b => b.onclick = () => { const t = invoiceById(b.dataset.gotoInv); closeSheet(el); setTimeout(() => t.status === 'draft' ? invoiceEditor(t) : invoiceDetail(t), 220); });
@@ -1605,7 +1671,7 @@ function recurringEditor(r) {
   const save = async () => {
     const d = collect();
     if (!d.customer_id) throw new Error('Bitte einen Kunden wählen.');
-    if (!d.items.length) throw new Error('Bitte mindestens eine Position eintragen.');
+    if (!positionsOf(d.items).length) throw new Error('Bitte mindestens eine Position eintragen.');
     if (!d.next_date) throw new Error('Bitte ein Datum für die nächste Rechnung wählen.');
     if (d.auto_send && !customerById(d.customer_id)?.email) throw new Error('Für automatischen Versand braucht der Kunde eine E-Mail-Adresse.');
     if (isNew) { const { data, error } = await db('recurring').insert(d).select().single(); if (error) throw error; r.id = data.id; }
@@ -1678,6 +1744,10 @@ function viewSettings() {
     <div data-products></div>
     <button class="btn ghost sm" data-add-product>+ Neue Standard-Position</button>
   </div>
+  <div class="section"><h3>Rabattarten</h3><p class="hint">Eigene Rabatte mit Namen, z. B. „Bestandskundenrabatt“. Beim Schreiben wählst du sie bei einer Position (Rabatt %) oder als Gesamtrabatt einfach aus.</p>
+    <div class="dtypes" data-dtypes>${discTypes().map(dtRow).join('')}</div>
+    <button class="btn ghost sm" data-add-dtype>+ Neue Rabattart</button>
+  </div>
   <div class="section"><h3>Angebote</h3>
     <div class="grid2">${f('quote_prefix', 'Nummern-Präfix', 'placeholder="AN"')}${f('quote_valid_days', 'Gültig für Tage', 'inputmode="numeric"')}</div>
     ${ta('quote_intro', 'Standard-Einleitung', 2)}${ta('quote_closing', 'Schlusssatz', 2)}
@@ -1715,7 +1785,13 @@ function drawProductsSettings() {
     : '<p class="mini" style="margin:0 0 12px">Noch keine Standard-Positionen.</p>';
   $$('[data-edit-product]', box).forEach(b => b.onclick = () => productEditor(state.products.find(x => x.id === b.dataset.editProduct), drawProductsSettings));
 }
+function dtRow(t = {}) {
+  return `<div class="disc dt"><input class="t-name" value="${esc(t.name || '')}" placeholder="Name, z. B. Treuerabatt" aria-label="Name"><input class="t-val" inputmode="decimal" value="${esc(+t.value ? fmtNum(t.value, t.mode === 'amount' ? 2 : 3) : '')}" placeholder="0" aria-label="Wert"><select class="t-mode" aria-label="Prozent oder Betrag"><option value="percent" ${t.mode !== 'amount' ? 'selected' : ''}>%</option><option value="amount" ${t.mode === 'amount' ? 'selected' : ''}>€</option></select><button type="button" class="icon-btn" data-del-dtype aria-label="Rabattart löschen">${ICON.close}</button></div>`;
+}
 function wireSettings() {
+  const dtBox = $('[data-dtypes]');
+  $('[data-add-dtype]').onclick = () => { dtBox.insertAdjacentHTML('beforeend', dtRow()); $$('.t-name', dtBox).pop().focus(); };
+  dtBox.addEventListener('click', e => { const b = e.target.closest('[data-del-dtype]'); if (b) b.closest('.dt').remove(); });
   drawProductsSettings();
   $('[data-add-product]').onclick = () => productEditor(null, drawProductsSettings);
   const read = () => {
@@ -1727,6 +1803,7 @@ function wireSettings() {
     if (out.iban) out.iban = out.iban.replace(/\s+/g, '').toUpperCase();
     if (out.bic) out.bic = out.bic.replace(/\s+/g, '').toUpperCase();
     out.logo = logo || '';
+    out.discount_types = $$('.dt', dtBox).map(r => ({ name: $('.t-name', r).value.trim(), mode: $('.t-mode', r).value, value: num($('.t-val', r).value) })).filter(t => t.name);
     return out;
   };
   let logo = S().logo || '';

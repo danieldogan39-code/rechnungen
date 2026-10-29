@@ -8,7 +8,16 @@ export interface Item {
   vat?: number; // Steuersatz in Prozent
   discount?: number; // Rabatt in Prozent
   billing?: string; // once | monthly | quarterly | yearly (nur in Angeboten relevant)
+  discount_label?: string; // Name des Positionsrabatts, z. B. "Bestandskundenrabatt"
+  type?: string; // "discount" = Gesamtrabatt-Zeile (keine Position)
+  mode?: string; // Gesamtrabatt: "percent" | "amount"
+  value?: number; // Gesamtrabatt: Prozent oder Betrag (netto)
 }
+
+export const isDiscountLine = (it: Item) => it?.type === "discount";
+export const positions = (items: Item[] = []) => items.filter((i) => !isDiscountLine(i));
+// leere Zeilen weglassen; Rabattzeilen nur mit Wert
+export const keepItem = (i: Item) => (isDiscountLine(i) ? Number(i.value) > 0 : !!(i.description || Number(i.price)));
 
 export const BILLING_LABEL: Record<string, string> = { once: "Einmalig", monthly: "Monatlich", quarterly: "Vierteljährlich", yearly: "Jährlich" };
 export const BILLING_SUFFIX: Record<string, string> = { once: "", monthly: " / Monat", quarterly: " / Quartal", yearly: " / Jahr" };
@@ -19,7 +28,7 @@ export function splitByBilling(items: Item[] = []) {
   const order = ["once", "monthly", "quarterly", "yearly"];
   const groups: Record<string, Item[]> = {};
   for (const it of items) (groups[billingOf(it)] ||= []).push(it);
-  return order.filter((k) => groups[k]?.length).map((k) => ({ billing: k, items: groups[k] }));
+  return order.filter((k) => groups[k]?.some((i) => i?.type !== "discount")).map((k) => ({ billing: k, items: groups[k] }));
 }
 
 export const DEFAULTS: Record<string, unknown> = {
@@ -30,6 +39,7 @@ export const DEFAULTS: Record<string, unknown> = {
   small_business: false,
   payment_days: 14,
   accent: "#F44C4C",
+  discount_types: [{ name: "Bestandskundenrabatt", mode: "percent", value: 10 }],
   intro: "Vielen Dank für Ihren Auftrag. Wir stellen Ihnen folgende Leistungen in Rechnung:",
   closing: "Vielen Dank für die gute Zusammenarbeit!",
   bcc_self: true,
@@ -62,22 +72,40 @@ export const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 export const lineNet = (it: Item) =>
   r2((Number(it.quantity) || 0) * (Number(it.price) || 0) * (1 - Math.min(Math.max(Number(it.discount) || 0, 0), 100) / 100));
 
+export interface DiscountRow { label: string; mode: "percent" | "amount"; value: number; amount: number }
+
+// Summen inkl. Gesamtrabatten. Rabatte mindern die Steuerbasis anteilig je Steuersatz.
+// Prozent-Rabatte beziehen sich jeweils auf die Zwischensumme; zusammen nie mehr als die Zwischensumme.
+// Bei Stornos (negative Mengen) drehen sich die Vorzeichen automatisch mit.
 export function totals(items: Item[] = [], smallBusiness = false) {
-  let net = 0;
+  let sub = 0;
   const byRate: Record<string, number> = {};
-  for (const it of items) {
+  for (const it of positions(items)) {
     const line = lineNet(it);
-    net += line;
+    sub += line;
     const rate = smallBusiness ? 0 : Number(it.vat) || 0;
     byRate[rate] = (byRate[rate] || 0) + line;
   }
-  net = r2(net);
+  sub = r2(sub);
+  const abs = Math.abs(sub), sign = sub < 0 ? -1 : 1;
+  let left = abs;
+  const discounts: DiscountRow[] = items.filter(isDiscountLine).map((d) => {
+    const mode = d.mode === "amount" ? "amount" : "percent";
+    const value = Math.max(Number(d.value) || 0, 0);
+    const raw = mode === "amount" ? value : (abs * Math.min(value, 100)) / 100;
+    const a = r2(Math.min(raw, left));
+    left = r2(left - a);
+    return { label: String(d.description || "Rabatt").trim() || "Rabatt", mode, value, amount: r2(a * sign) };
+  });
+  const discountTotal = r2(discounts.reduce((s, d) => s + d.amount, 0));
+  const net = r2(sub - discountTotal);
+  const factor = sub ? net / sub : 1;
   const vatLines = Object.entries(byRate)
-    .map(([rate, base]) => ({ rate: Number(rate), base: r2(base), amount: r2((base * Number(rate)) / 100) }))
+    .map(([rate, base]) => ({ rate: Number(rate), base: r2(base * factor), amount: r2((base * factor * Number(rate)) / 100) }))
     .filter((v) => v.rate > 0)
     .sort((a, b) => b.rate - a.rate);
   const vat = r2(vatLines.reduce((s, v) => s + v.amount, 0));
-  return { net, vat, gross: r2(net + vat), vatLines };
+  return { net, vat, gross: r2(net + vat), vatLines, subtotal: sub, discounts, discountTotal };
 }
 
 const EUR = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" });

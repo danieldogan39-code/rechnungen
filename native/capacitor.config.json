@@ -6,6 +6,10 @@
     "backgroundColor": "#0E192A"
   },
   "plugins": {
-    "SystemBars": { "style": "DARK", "insetsHandling": "css" }
-  }
+    "SystemBars": {
+      "style": "DARK",
+      "insetsHandling": "css"
+    }
+  },
+  "loggingBehavior": "production"
 }

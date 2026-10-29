@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rechnungen</title>
+<meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="robots" content="noindex, nofollow">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#f5f6f8;--card:#fff;--ink:#14171c;--muted:#687080;--line:#e4e7ec;--soft:#eef1f5;
+  --accent:#2454d6;--accent-soft:#e8eefc;--ok:#15803d;--ok-soft:#e7f6ec;--warn:#b45309;--warn-soft:#fdf3e2;
+  --bad:#c62828;--bad-soft:#fdecec;--radius:14px;--shadow:0 1px 2px rgba(16,24,40,.05),0 6px 20px rgba(16,24,40,.05);
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f1115;--card:#181b21;--ink:#eceef2;--muted:#9aa2b1;--line:#272b33;--soft:#1f232b;
+  --accent:#6b8fff;--accent-soft:#1d2643;--ok:#4ade80;--ok-soft:#14291d;--warn:#fbbf24;--warn-soft:#2e2412;
+  --bad:#f87171;--bad-soft:#331a1a;--shadow:none;
+}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{margin:0;letter-spacing:-.01em}
+.top{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:saturate(1.6) blur(14px);-webkit-backdrop-filter:saturate(1.6) blur(14px);border-bottom:1px solid var(--line);padding:calc(10px + env(safe-area-inset-top)) 16px 10px}
+.top-in{max-width:880px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.brand{font-weight:700;font-size:18px;display:flex;align-items:center;gap:8px}
+.brand i{width:9px;height:9px;border-radius:50%;background:var(--ok);display:inline-block}
+.brand i.off{background:var(--warn)}
+.sp{flex:1}
+.tabs{display:flex;gap:4px}
+.tabs button{border:0;background:none;padding:8px 12px;border-radius:10px;color:var(--muted);font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px}
+.tabs button svg{width:20px;height:20px}
+.tabs button.on{color:var(--accent);background:var(--accent-soft)}
+main{max-width:880px;margin:0 auto;padding:16px 16px calc(96px + env(safe-area-inset-bottom))}
+@media (max-width:759px){
+  .top{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--bg)}
+  .tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;justify-content:space-around;background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+  .tabs button{flex-direction:column;gap:2px;font-size:11px;padding:6px 4px;flex:1;background:none!important}
+}
+.icon-btn{border:0;background:none;width:38px;height:38px;border-radius:10px;display:grid;place-items:center;cursor:pointer;color:var(--muted)}
+.icon-btn:hover{background:var(--soft)}
+.icon-btn svg{width:20px;height:20px}
+.btn{border:0;border-radius:11px;padding:11px 16px;font-weight:600;background:var(--accent);color:#fff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;white-space:nowrap}
+.btn.ghost{background:var(--soft);color:var(--ink)}
+.btn.danger{color:var(--bad)}
+.btn.sm{min-height:36px;padding:7px 12px;font-size:14px}
+.btn:disabled{opacity:.55;cursor:default}
+.btn.busy::after{content:"";width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.fab{position:fixed;right:max(16px,calc(50vw - 424px));bottom:calc(84px + env(safe-area-inset-bottom));z-index:4;box-shadow:0 8px 24px rgba(36,84,214,.35);border-radius:16px;padding:14px 20px}
+@media (min-width:760px){.fab{bottom:28px}}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.stat{background:var(--card);border-radius:var(--radius);padding:12px 14px;box-shadow:var(--shadow);border:1px solid var(--line)}
+.stat span{display:block;font-size:12.5px;color:var(--muted)}
+.stat b{font-size:17px;font-variant-numeric:tabular-nums}
+.stat.bad b{color:var(--bad)}
+@media (max-width:420px){.stat b{font-size:15px}.stat{padding:10px}}
+.bar{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.chips::-webkit-scrollbar{display:none}
+.chips button{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;font-size:13.5px;cursor:pointer;white-space:nowrap;color:var(--muted)}
+.chips button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.search{flex:1;min-width:160px}
+.list{background:var(--card);border-radius:var(--radius);border:1px solid var(--line);box-shadow:var(--shadow);overflow:hidden}
+.row{display:flex;width:100%;text-align:left;gap:12px;align-items:center;padding:13px 16px;border:0;background:none;border-bottom:1px solid var(--line);cursor:pointer}
+.row:last-child{border-bottom:0}
+.row:hover{background:var(--soft)}
+.row-main{flex:1;min-width:0}
+.row-main b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row-main small{color:var(--muted);font-size:13px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row-side{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.row-side b{font-variant-numeric:tabular-nums;font-weight:600}
+.chip{font-size:12px;font-weight:600;border-radius:999px;padding:2px 9px;white-space:nowrap}
+.chip.grey{background:var(--soft);color:var(--muted)}.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}.chip.bad{background:var(--bad-soft);color:var(--bad)}
+.chip.blue{background:var(--accent-soft);color:var(--accent)}
+.empty{text-align:center;color:var(--muted);padding:48px 16px}
+.empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
+.banner{background:var(--warn-soft);color:var(--warn);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:14px}
+.note{background:var(--accent-soft);color:var(--ink);border-radius:12px;padding:10px 14px;font-size:14px;margin-bottom:14px}
+label{display:block;font-size:13px;color:var(--muted);font-weight:500;margin-bottom:12px}
+input,select,textarea{display:block;width:100%;margin-top:5px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:44px;outline:none;transition:border-color .15s,box-shadow .15s}
+textarea{resize:vertical;min-height:64px;line-height:1.4}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+input[type=checkbox]{width:22px;height:22px;min-height:0;margin:0;accent-color:var(--accent);flex:none}
+.check{display:flex;align-items:center;gap:10px;color:var(--ink);font-size:15px;margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.grid3{display:grid;grid-template-columns:110px 1fr;gap:0 12px}
+@media (max-width:520px){.grid2{grid-template-columns:1fr}}
+.inline{display:flex;gap:8px;align-items:stretch;margin-top:5px}
+.inline select{margin-top:0}
+.section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+.section h3{font-size:15px;margin-bottom:12px}
+.section p.hint{font-size:13px;color:var(--muted);margin:-6px 0 12px}
+h3.sub{font-size:14px;margin:6px 0 10px}
+/* Positionen */
+.items{display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
+.item{border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--bg)}
+.item textarea{min-height:44px;margin-top:0}
+.item-nums{display:grid;grid-template-columns:1fr 1fr 1.3fr .9fr auto;gap:8px;align-items:end;margin-top:8px}
+.item-nums label{margin:0;font-size:11.5px}
+.item-nums input,.item-nums select{min-height:40px;padding:8px 9px}
+.item-foot{display:flex;justify-content:flex-end;font-size:13px;color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums}
+@media (max-width:520px){.item-nums{grid-template-columns:1fr 1fr 1fr}.item-nums .del{grid-column:3;justify-self:end}}
+.totals{margin:6px 0 16px;padding:12px 14px;border-radius:12px;background:var(--soft);font-variant-numeric:tabular-nums}
+.totals div{display:flex;justify-content:space-between;font-size:14px;color:var(--muted)}
+.totals div.g{color:var(--ink);font-weight:700;font-size:16px;margin-top:4px}
+/* Sheets */
+.sheet-wrap{position:fixed;inset:0;z-index:20;background:rgba(10,12,16,.38);display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .2s}
+.sheet-wrap.open{opacity:1}
+.sheet{background:var(--bg);width:100%;max-width:720px;height:calc(100% - 28px - env(safe-area-inset-top));border-radius:18px 18px 0 0;display:flex;flex-direction:column;transform:translateY(24px);transition:transform .25s cubic-bezier(.2,.8,.2,1);overflow:hidden}
+.sheet-wrap.open .sheet{transform:none}
+@media (min-width:760px){.sheet-wrap{align-items:center}.sheet{height:auto;max-height:88vh;border-radius:18px}}
+.sheet-h{display:flex;align-items:center;gap:8px;padding:12px 12px 10px 16px;border-bottom:1px solid var(--line);background:var(--card)}
+.sheet-h h2{font-size:17px;flex:1}
+.sheet-b{padding:16px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}
+.sheet-f{display:flex;gap:8px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--card);flex-wrap:wrap}
+.sheet-f .btn{flex:1 1 auto}
+@media (min-width:760px){.sheet-f{justify-content:flex-end}.sheet-f .btn{flex:0 0 auto}.sheet-f .danger{margin-right:auto}}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:14px;margin:4px 0 16px}
+.kv dt{color:var(--muted)}.kv dd{margin:0;text-align:right}
+.big{font-size:30px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.actions{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
+.actions .btn{justify-content:flex-start;width:100%}
+.mini{font-size:13.5px;color:var(--muted)}
+.mini li{margin-bottom:4px}
+.linkbtn{border:0;background:none;color:var(--accent);padding:0;cursor:pointer;font-weight:600}
+.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(10px);background:var(--ink);color:var(--bg);padding:11px 16px;border-radius:12px;font-size:14px;z-index:50;opacity:0;transition:.2s;width:max-content;max-width:calc(100% - 32px);box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.toast.bad{background:var(--bad);color:#fff}
+.center{min-height:100vh;display:grid;place-items:center;padding:24px}
+.login{width:100%;max-width:380px}
+.login .logo{width:56px;height:56px;border-radius:16px;background:var(--accent);display:grid;place-items:center;margin-bottom:16px}
+.login .logo svg{width:30px;height:30px;color:#fff}
+.login h1{font-size:24px;margin-bottom:6px}
+.login p{color:var(--muted);margin:0 0 20px}
+.login .btn{width:100%}
+code{background:var(--soft);padding:1px 6px;border-radius:6px;font-size:13px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<script>
+(() => {
+'use strict';
+
+// ---------- Grundlagen ----------
+const CFG = window.RECHNUNG_CONFIG || {};
+const configured = !!(CFG.supabaseUrl && CFG.supabaseKey && !/DEIN|XXXX/i.test(CFG.supabaseUrl + CFG.supabaseKey) && window.supabase);
+const sb = configured ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey) : null;
+const FN_URL = configured ? CFG.supabaseUrl.replace(/\/$/, '') + '/functions/v1/rechnungen' : '';
+
+const DEFAULTS = {
+  prefix: 'RE-', payment_days: 14, accent: '#2454d6',
+  intro: 'Vielen Dank für Ihren Auftrag. Wir stellen Ihnen folgende Leistungen in Rechnung:',
+  closing: 'Vielen Dank für die gute Zusammenarbeit!',
+  bcc_self: true, reminders_enabled: true, reminder_interval: 7, max_reminders: 3,
+  tpl_invoice_subject: 'Rechnung {nummer} – {firma}',
+  tpl_invoice_body: '{anrede},\n\nanbei erhalten Sie unsere Rechnung {nummer} vom {datum} über {betrag}.\n\nBitte überweisen Sie den Betrag bis zum {faellig} unter Angabe der Rechnungsnummer.\n\nVielen Dank und viele Grüße\n{firma}',
+  tpl_correction_subject: 'Korrigierte Rechnung {nummer} (ersetzt {alte_nummer})',
+  tpl_correction_body: '{anrede},\n\ndie Rechnung {alte_nummer} wurde storniert und durch die beigefügte Rechnung {nummer} über {betrag} ersetzt. Im Anhang finden Sie die Stornorechnung und die neue Rechnung.\n\nBitte überweisen Sie den Betrag bis zum {faellig}. Falls Sie die ursprüngliche Rechnung bereits bezahlt haben, geben Sie uns bitte kurz Bescheid, dann verrechnen wir den Betrag.\n\nViele Grüße\n{firma}',
+  tpl_cancel_subject: 'Stornierung der Rechnung {alte_nummer}',
+  tpl_cancel_body: '{anrede},\n\ndie Rechnung {alte_nummer} wurde storniert. Die Stornorechnung {nummer} finden Sie im Anhang. Sie müssen nichts weiter tun. Falls Sie bereits bezahlt haben, erstatten wir Ihnen den Betrag.\n\nViele Grüße\n{firma}',
+  tpl_reminder_subject: 'Zahlungserinnerung zur Rechnung {nummer}',
+  tpl_reminder_body: '{anrede},\n\nsicher ist es nur untergegangen: Für unsere Rechnung {nummer} vom {datum} über {betrag}, fällig am {faellig}, konnten wir noch keinen Zahlungseingang feststellen.\n\nBitte überweisen Sie den Betrag in den nächsten Tagen. Die Rechnung finden Sie noch einmal im Anhang. Falls Sie bereits gezahlt haben, betrachten Sie diese E-Mail bitte als gegenstandslos.\n\nViele Grüße\n{firma}',
+};
+
+const state = {
+  session: null, tab: 'invoices', filter: 'all', query: '',
+  settings: { ...DEFAULTS }, customers: [], invoices: [], recurring: [], mail: [],
+  offline: false, loaded: false,
+};
+try { state.tab = localStorage.getItem('rechnungen-tab') || 'invoices'; } catch {}
+
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const r2 = n => Math.round((n + Number.EPSILON) * 100) / 100;
+const EUR = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
+const eur = n => EUR.format(+n || 0);
+const fmtDate = iso => iso ? String(iso).slice(0, 10).split('-').reverse().join('.') : '–';
+const fmtDateTime = ts => ts ? new Date(ts).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : '–';
+const todayISO = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin' }).format(new Date());
+const num = v => { let s = String(v ?? '').trim().replace(/\s|€/g, ''); if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.'); const n = parseFloat(s); return isFinite(n) ? n : 0; };
+const fmtNum = (n, d = 2) => (+n || 0).toLocaleString('de-DE', { minimumFractionDigits: d === 2 ? 2 : 0, maximumFractionDigits: d === 2 ? 2 : 3, useGrouping: false });
+const S = () => state.settings;
+const INTERVALS = { monthly: 'monatlich', quarterly: 'vierteljährlich', yearly: 'jährlich' };
+
+function totals(items = []) {
+  let net = 0; const byRate = {};
+  for (const it of items) { const line = r2((+it.quantity || 0) * (+it.price || 0)); net += line; const rate = +it.vat || 0; byRate[rate] = (byRate[rate] || 0) + line; }
+  net = r2(net);
+  const vatLines = Object.entries(byRate).map(([rate, base]) => ({ rate: +rate, base: r2(base), amount: r2(base * +rate / 100) })).filter(v => v.rate > 0).sort((a, b) => b.rate - a.rate);
+  const vat = r2(vatLines.reduce((s, v) => s + v.amount, 0));
+  return { net, vat, gross: r2(net + vat), vatLines };
+}
+
+const ICON = {
+  doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>',
+  users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14.2A6.5 6.5 0 0 1 21.5 20"/></svg>',
+  repeat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>',
+  close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+};
+
+// ---------- UI-Helfer ----------
+let toastTimer;
+function toast(msg, bad = false) {
+  let el = $('.toast');
+  if (!el) { el = document.createElement('div'); el.className = 'toast'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+  el.textContent = msg; el.classList.toggle('bad', bad); el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), bad ? 6000 : 3000);
+}
+
+async function run(btn, fn) {
+  if (btn) { if (btn.disabled) return; btn.disabled = true; btn.classList.add('busy'); }
+  try { await fn(btn); }
+  catch (e) { console.error(e); toast(e?.message || String(e), true); }
+  finally { if (btn && btn.isConnected) { btn.disabled = false; btn.classList.remove('busy'); } }
+}
+
+function openSheet(title, body, footer = '') {
+  const el = document.createElement('div');
+  el.className = 'sheet-wrap';
+  el.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+    <header class="sheet-h"><h2>${esc(title)}</h2><button class="icon-btn" data-close aria-label="Schließen">${ICON.close}</button></header>
+    <div class="sheet-b">${body}</div>${footer ? `<footer class="sheet-f">${footer}</footer>` : ''}</div>`;
+  el.addEventListener('click', e => { if (e.target === el || e.target.closest('[data-close]')) closeSheet(el); });
+  document.body.appendChild(el);
+  document.body.style.overflow = 'hidden';
+  requestAnimationFrame(() => el.classList.add('open'));
+  return el;
+}
+function closeSheet(el) {
+  el = el || $$('.sheet-wrap').pop(); if (!el) return;
+  el.classList.remove('open');
+  setTimeout(() => { el.remove(); if (!$('.sheet-wrap')) document.body.style.overflow = ''; }, 200);
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+const bind = (el, key, fn) => { const b = el.querySelector(`[data-x="${key}"]`); if (b) b.onclick = () => run(b, fn); };
+
+// ---------- Daten ----------
+const CACHE_KEY = 'rechnungen-cache-v1';
+function cacheSave() {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ settings: state.settings, customers: state.customers, invoices: state.invoices, recurring: state.recurring, mail: state.mail, at: Date.now() })); } catch {}
+}
+function cacheLoad() {
+  try { const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); if (!c) return false; Object.assign(state, { settings: { ...DEFAULTS, ...c.settings }, customers: c.customers, invoices: c.invoices, recurring: c.recurring, mail: c.mail || [] }); return true; } catch { return false; }
+}
+
+async function loadAll() {
+  try {
+    const q = await Promise.all([
+      sb.from('settings').select('company').maybeSingle(),
+      sb.from('customers').select('*').order('name'),
+      sb.from('invoices').select('*').order('created_at', { ascending: false }),
+      sb.from('recurring').select('*').order('next_date'),
+      sb.from('mail_log').select('*').order('sent_at', { ascending: false }).limit(1000),
+    ]);
+    const err = q.find(r => r.error); if (err) throw err.error;
+    state.settings = { ...DEFAULTS, ...(q[0].data?.company || {}) };
+    state.customers = q[1].data; state.invoices = q[2].data; state.recurring = q[3].data; state.mail = q[4].data;
+    state.offline = false; state.loaded = true; cacheSave();
+  } catch (e) {
+    console.error(e);
+    if (/JWT|session|auth/i.test(e?.message || '')) { await sb.auth.signOut(); return; }
+    if (cacheLoad()) { state.offline = true; state.loaded = true; } else toast('Daten konnten nicht geladen werden: ' + (e?.message || e), true);
+  }
+  render();
+}
+
+async function callFn(action, payload = {}, binary = false) {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) throw new Error('Bitte neu anmelden.');
+  let res;
+  try {
+    res = await fetch(FN_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, apikey: CFG.supabaseKey }, body: JSON.stringify({ action, ...payload }) });
+  } catch { throw new Error('Keine Verbindung zum Server.'); }
+  if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || `Fehler ${res.status}`); }
+  return binary ? res.blob() : res.json();
+}
+
+async function openPdf(inv) {
+  const blob = await callFn('pdf', { id: inv.id }, true);
+  const name = `${inv.kind === 'storno' ? 'Stornorechnung' : 'Rechnung'}_${inv.number || 'Entwurf'}.pdf`;
+  const file = new File([blob], name, { type: 'application/pdf' });
+  const mobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+  if (mobile && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: name }); return; } catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const url = URL.createObjectURL(file);
+  const a = document.createElement('a'); a.href = url;
+  if (mobile) a.download = name; else a.target = '_blank';
+  a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+const customerById = id => state.customers.find(c => c.id === id);
+const invoiceById = id => state.invoices.find(i => i.id === id);
+const custName = inv => inv.customer?.name || customerById(inv.customer_id)?.name || 'Ohne Kunde';
+const invTotal = inv => inv.status === 'draft' ? totals(inv.items).gross : +inv.gross;
+function invStatus(inv) {
+  if (inv.kind === 'storno') return { key: 'cancelled', label: 'Storno', cls: 'grey' };
+  if (inv.status === 'draft') return { key: 'draft', label: 'Entwurf', cls: 'blue' };
+  if (inv.status === 'cancelled') return { key: 'cancelled', label: 'Storniert', cls: 'grey' };
+  if (inv.status === 'paid') return { key: 'paid', label: 'Bezahlt', cls: 'ok' };
+  if (inv.due_date && inv.due_date < todayISO()) return { key: 'overdue', label: inv.reminders_sent ? `Überfällig · ${inv.reminders_sent}× erinnert` : 'Überfällig', cls: 'bad' };
+  return { key: 'open', label: 'Offen', cls: 'warn' };
+}
+const chip = inv => { const s = invStatus(inv); return `<span class="chip ${s.cls}">${esc(s.label)}</span>`; };
+
+// ---------- Rendering ----------
+function render() {
+  const app = $('#app');
+  if (!configured) { app.innerHTML = viewNotConfigured(); return; }
+  if (!state.session) { app.innerHTML = viewLogin(); wireLogin(); return; }
+  const tabs = [['invoices', 'Rechnungen', ICON.doc], ['customers', 'Kunden', ICON.users], ['recurring', 'Abos', ICON.repeat], ['settings', 'Einstellungen', ICON.gear]];
+  app.innerHTML = `
+    <header class="top"><div class="top-in">
+      <div class="brand"><i class="${state.offline ? 'off' : ''}" title="${state.offline ? 'Offline – gespeicherter Stand' : 'Synchronisiert'}"></i>Rechnungen</div>
+      <span class="sp"></span>
+      <nav class="tabs">${tabs.map(([k, l, i]) => `<button data-tab="${k}" class="${state.tab === k ? 'on' : ''}">${i}<span>${l}</span></button>`).join('')}</nav>
+      <button class="icon-btn" data-refresh aria-label="Aktualisieren">${ICON.refresh}</button>
+    </div></header>
+    <main>${state.offline ? '<div class="banner">Offline: Du siehst den zuletzt gespeicherten Stand. Änderungen sind erst wieder mit Internet möglich.</div>' : ''}${
+      !state.loaded ? '<div class="empty">Lade …</div>' :
+      state.tab === 'customers' ? viewCustomers() : state.tab === 'recurring' ? viewRecurring() : state.tab === 'settings' ? viewSettings() : viewInvoices()
+    }</main>`;
+  $$('[data-tab]').forEach(b => b.onclick = () => { state.tab = b.dataset.tab; try { localStorage.setItem('rechnungen-tab', state.tab); } catch {} render(); window.scrollTo(0, 0); });
+  $('[data-refresh]').onclick = e => run(e.currentTarget, loadAll);
+  if (state.tab === 'settings' && state.loaded) wireSettings();
+  if (state.tab === 'invoices') wireInvoices();
+  $$('[data-open-cust]').forEach(b => b.onclick = () => customerEditor(customerById(b.dataset.openCust)));
+  $$('[data-open-rec]').forEach(b => b.onclick = () => recurringEditor(state.recurring.find(r => r.id === b.dataset.openRec)));
+  const fab = $('[data-fab]');
+  if (fab) fab.onclick = () => ({ invoices: () => invoiceEditor(null), customers: () => customerEditor(null), recurring: () => recurringEditor(null) })[state.tab]?.();
+}
+
+function viewNotConfigured() {
+  return `<div class="center"><div class="login"><h1>Fast geschafft</h1><p>Trage in der Datei <code>config.js</code> deine Supabase-Adresse und den öffentlichen Schlüssel ein. Die Anleitung erklärt, wo du beides findest.</p></div></div>`;
+}
+
+function viewLogin() {
+  return `<div class="center"><form class="login" id="login">
+    <div class="logo">${ICON.doc}</div>
+    <h1>Rechnungen</h1><p>Melde dich an, um deine Rechnungen auf allen Geräten zu sehen.</p>
+    <label>E-Mail<input name="email" type="email" autocomplete="username" required></label>
+    <label>Passwort<input name="password" type="password" autocomplete="current-password" required></label>
+    <button class="btn" type="submit">Anmelden</button>
+  </form></div>`;
+}
+function wireLogin() {
+  const f = $('#login');
+  f.onsubmit = e => {
+    e.preventDefault();
+    run(f.querySelector('button'), async () => {
+      const { error } = await sb.auth.signInWithPassword({ email: f.email.value.trim(), password: f.password.value });
+      if (error) throw new Error(error.message === 'Invalid login credentials' ? 'E-Mail oder Passwort falsch.' : error.message);
+    });
+  };
+}
+
+// ----- Rechnungen -----
+function viewInvoices() {
+  const today = todayISO(), year = today.slice(0, 4);
+  const withStatus = state.invoices.map(i => [i, invStatus(i)]);
+  const sum = keys => withStatus.filter(([, s]) => keys.includes(s.key)).reduce((a, [i]) => a + +i.gross, 0);
+  const paidYear = state.invoices.filter(i => i.kind === 'invoice' && i.status === 'paid' && String(i.issue_date).startsWith(year)).reduce((a, i) => a + +i.gross, 0);
+  const filters = [['all', 'Alle'], ['draft', 'Entwürfe'], ['open', 'Offen'], ['overdue', 'Überfällig'], ['paid', 'Bezahlt'], ['cancelled', 'Storniert']];
+  const q = state.query.trim().toLowerCase();
+  const list = withStatus.filter(([i, s]) =>
+    (state.filter === 'all' || s.key === state.filter || (state.filter === 'open' && s.key === 'overdue')) &&
+    (!q || `${i.number || ''} ${custName(i)} ${i.service_text || ''}`.toLowerCase().includes(q)));
+  return `
+    <div class="stats">
+      <div class="stat"><span>Offen</span><b>${eur(sum(['open', 'overdue']))}</b></div>
+      <div class="stat ${sum(['overdue']) > 0 ? 'bad' : ''}"><span>Überfällig</span><b>${eur(sum(['overdue']))}</b></div>
+      <div class="stat"><span>Bezahlt ${year}</span><b>${eur(paidYear)}</b></div>
+    </div>
+    <div class="bar">
+      <div class="chips">${filters.map(([k, l]) => `<button data-filter="${k}" class="${state.filter === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+      <input class="search" type="search" placeholder="Suchen …" value="${esc(state.query)}" aria-label="Rechnungen durchsuchen">
+    </div>
+    ${list.length ? `<div class="list">${list.map(([i]) => `
+      <button class="row" data-open-inv="${i.id}">
+        <div class="row-main"><b>${esc(custName(i))}</b>
+          <small>${esc(i.number || 'Entwurf')}${i.issue_date ? ' · ' + fmtDate(i.issue_date) : ''}${i.recurring_id ? ' · Abo' : ''}${i.service_text ? ' · ' + esc(i.service_text) : ''}</small></div>
+        <div class="row-side"><b>${eur(invTotal(i))}</b>${chip(i)}</div>
+      </button>`).join('')}</div>`
+      : `<div class="empty"><b>${state.invoices.length ? 'Nichts gefunden' : 'Noch keine Rechnungen'}</b>${state.invoices.length ? 'Ändere den Filter oder die Suche.' : 'Leg mit dem Plus-Knopf deine erste Rechnung an.'}</div>`}
+    <button class="btn fab" data-fab>+ Rechnung</button>`;
+}
+function wireInvoices() {
+  $$('[data-filter]').forEach(b => b.onclick = () => { state.filter = b.dataset.filter; render(); });
+  const s = $('.search');
+  if (s) s.oninput = () => { state.query = s.value; const pos = s.selectionStart; render(); const n = $('.search'); n.focus(); n.setSelectionRange(pos, pos); };
+  $$('[data-open-inv]').forEach(b => b.onclick = () => { const inv = invoiceById(b.dataset.openInv); inv.status === 'draft' ? invoiceEditor(inv) : invoiceDetail(inv); });
+}
+
+// Positionen-Editor (für Rechnungen und Abos)
+const UNITS = ['Std.', 'Stk.', 'pauschal', 'Monat', 'Tag', 'Seite'];
+function itemRow(it = {}) {
+  const vat = it.vat ?? 19;
+  return `<div class="item">
+    <textarea class="i-desc" rows="1" placeholder="Leistung, z. B. Website-Erstellung">${esc(it.description)}</textarea>
+    <div class="item-nums">
+      <label>Menge<input class="i-qty" inputmode="decimal" value="${esc(fmtNum(it.quantity ?? 1, 3))}"></label>
+      <label>Einheit<input class="i-unit" list="units" value="${esc(it.unit ?? 'Std.')}"></label>
+      <label>Preis netto €<input class="i-price" inputmode="decimal" value="${esc(it.price != null ? fmtNum(it.price) : '')}" placeholder="0,00"></label>
+      <label>USt<select class="i-vat">${[19, 7, 0].map(v => `<option value="${v}" ${+vat === v ? 'selected' : ''}>${v} %</option>`).join('')}</select></label>
+      <button type="button" class="icon-btn del" data-del-item aria-label="Position entfernen">${ICON.close}</button>
+    </div>
+    <div class="item-foot"></div>
+  </div>`;
+}
+function itemsEditor(items) {
+  return `<datalist id="units">${UNITS.map(u => `<option value="${u}">`).join('')}</datalist>
+    <div class="items">${(items?.length ? items : [{}]).map(itemRow).join('')}</div>
+    <button type="button" class="btn ghost sm" data-add-item>+ Position</button>
+    <div class="totals"></div>`;
+}
+function readItems(root) {
+  return $$('.item', root).map(el => ({
+    description: $('.i-desc', el).value.trim(), quantity: num($('.i-qty', el).value), unit: $('.i-unit', el).value.trim(),
+    price: num($('.i-price', el).value), vat: +$('.i-vat', el).value,
+  })).filter(it => it.description || it.price);
+}
+function wireItems(root) {
+  const box = $('.items', root);
+  const update = () => {
+    $$('.item', root).forEach(el => { const l = r2(num($('.i-qty', el).value) * num($('.i-price', el).value)); $('.item-foot', el).textContent = l ? `= ${eur(l)} netto` : ''; });
+    const t = totals(readItems(root));
+    $('.totals', root).innerHTML = `<div><span>Netto</span><span>${eur(t.net)}</span></div>${t.vatLines.map(v => `<div><span>USt ${v.rate} %</span><span>${eur(v.amount)}</span></div>`).join('')}<div class="g"><span>Gesamt</span><span>${eur(t.gross)}</span></div>`;
+  };
+  const grow = ta => { ta.style.height = 'auto'; ta.style.height = Math.max(44, ta.scrollHeight + 2) + 'px'; };
+  root.addEventListener('input', e => { if (e.target.closest('.item')) { if (e.target.matches('.i-desc')) grow(e.target); update(); } });
+  root.addEventListener('change', e => { if (e.target.closest('.item')) update(); });
+  $('[data-add-item]', root).onclick = () => { box.insertAdjacentHTML('beforeend', itemRow({ vat: $$('.i-vat', root).pop()?.value ?? 19 })); $$('.i-desc', root).pop().focus(); update(); };
+  box.addEventListener('click', e => { const d = e.target.closest('[data-del-item]'); if (!d) return; d.closest('.item').remove(); if (!$('.item', root)) box.insertAdjacentHTML('beforeend', itemRow()); update(); });
+  requestAnimationFrame(() => $$('.i-desc', root).forEach(grow));
+  update();
+}
+
+const custOptions = sel => `<option value="">Kunde wählen …</option>` + state.customers.map(c => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(c.name)}${c.email ? '' : ' (ohne E-Mail)'}</option>`).join('');
+
+function invoiceEditor(inv) {
+  const isNew = !inv;
+  inv = inv || { items: [{ quantity: 1, unit: 'Std.', vat: 19 }], intro: S().intro, service_text: '', notes: '', customer_id: '' };
+  const ref = inv.ref_invoice_id && invoiceById(inv.ref_invoice_id);
+  const el = openSheet(isNew ? 'Neue Rechnung' : 'Rechnungsentwurf', `
+    ${ref ? `<div class="note">Korrektur zu <b>${esc(ref.number)}</b>. Beim Versand bekommt der Kunde die Stornorechnung und diese neue Rechnung zusammen.</div>` : ''}
+    <label>Kunde<div class="inline"><select name="customer_id">${custOptions(inv.customer_id)}</select><button type="button" class="btn ghost sm" data-x="newcust">+ Neu</button></div></label>
+    <label>Leistungsdatum / -zeitraum<input name="service_text" value="${esc(inv.service_text)}" placeholder="z. B. Oktober 2026 oder 28.10.2026"></label>
+    <label>Einleitungstext<textarea name="intro" rows="2">${esc(inv.intro)}</textarea></label>
+    <h3 class="sub">Positionen</h3>
+    ${itemsEditor(inv.items)}
+    <label>Anmerkung (optional)<textarea name="notes" rows="2" placeholder="Erscheint unter den Summen">${esc(inv.notes)}</textarea></label>
+    <p class="mini">Die Rechnungsnummer und das Datum werden beim Abschließen vergeben. Danach ist die Rechnung nicht mehr änderbar, nur noch per Korrektur.
+    <br><button type="button" class="linkbtn" data-x="issueonly">Nur abschließen, ohne Versand</button></p>`,
+    `${isNew ? '' : '<button class="btn ghost danger" data-x="del">Löschen</button>'}
+     <button class="btn ghost" data-x="preview">Vorschau</button>
+     <button class="btn ghost" data-x="save">Speichern</button>
+     <button class="btn" data-x="issue">Abschließen &amp; senden</button>`);
+  wireItems(el);
+  let id = inv.id;
+  const collect = () => ({
+    customer_id: $('[name=customer_id]', el).value || null, service_text: $('[name=service_text]', el).value.trim(),
+    intro: $('[name=intro]', el).value.trim(), notes: $('[name=notes]', el).value.trim(), items: readItems(el),
+  });
+  const save = async () => {
+    const d = collect();
+    if (id) { const { error } = await sb.from('invoices').update(d).eq('id', id); if (error) throw error; }
+    else { const { data, error } = await sb.from('invoices').insert({ ...d, status: 'draft', kind: 'invoice', ref_invoice_id: inv.ref_invoice_id || null }).select().single(); if (error) throw error; id = data.id; }
+    return d;
+  };
+  const check = d => {
+    if (!d.customer_id) throw new Error('Bitte einen Kunden wählen.');
+    if (!d.items.length) throw new Error('Bitte mindestens eine Position eintragen.');
+    if (!d.service_text) throw new Error('Bitte Leistungsdatum oder -zeitraum angeben (Pflichtangabe).');
+  };
+  const doIssue = async send => {
+    const d = collect(); check(d);
+    const c = customerById(d.customer_id);
+    if (send && !c?.email) throw new Error('Der Kunde hat keine E-Mail-Adresse. Trag sie beim Kunden ein oder wähle „Nur abschließen“.');
+    if (!confirm(send ? `Rechnung abschließen und an ${c.email} senden?` : 'Rechnung abschließen, ohne sie zu versenden?')) return;
+    await save();
+    const r = await callFn('issue', { id, send });
+    closeSheet(el); await loadAll();
+    toast(send ? `Rechnung ${r.invoice.number} an ${c.email} gesendet` : `Rechnung ${r.invoice.number} abgeschlossen`);
+  };
+  bind(el, 'save', async () => { await save(); closeSheet(el); await loadAll(); toast('Entwurf gespeichert'); });
+  bind(el, 'preview', async () => { await save(); await openPdf({ id, kind: 'invoice' }); loadAll(); });
+  bind(el, 'issue', () => doIssue(true));
+  bind(el, 'issueonly', () => doIssue(false));
+  bind(el, 'del', async () => { if (!confirm('Entwurf löschen?')) return; const { error } = await sb.from('invoices').delete().eq('id', id); if (error) throw error; closeSheet(el); await loadAll(); toast('Entwurf gelöscht'); });
+  bind(el, 'newcust', () => customerEditor(null, c => { $('[name=customer_id]', el).innerHTML = custOptions(c.id); }));
+}
+
+function invoiceDetail(inv) {
+  const st = invStatus(inv);
+  const ref = inv.ref_invoice_id && invoiceById(inv.ref_invoice_id);
+  const storno = state.invoices.find(x => x.kind === 'storno' && x.ref_invoice_id === inv.id);
+  const replacement = state.invoices.find(x => x.kind === 'invoice' && x.ref_invoice_id === inv.id);
+  const logs = state.mail.filter(m => m.invoice_id === inv.id);
+  const typeLabel = { invoice: 'Rechnung', correction: 'Korrektur', cancel: 'Storno', reminder: 'Zahlungserinnerung' };
+  const isInv = inv.kind === 'invoice';
+  const canAct = !state.offline;
+  const rel = [];
+  if (ref) rel.push(`${inv.kind === 'storno' ? 'Storniert' : 'Ersetzt'} <button class="linkbtn" data-goto="${ref.id}">${esc(ref.number)}</button>`);
+  if (storno) rel.push(`Storniert durch <button class="linkbtn" data-goto="${storno.id}">${esc(storno.number)}</button>`);
+  if (replacement) rel.push(`Ersetzt durch <button class="linkbtn" data-goto="${replacement.id}">${esc(replacement.number || 'Entwurf')}</button>`);
+  const el = openSheet(`${inv.kind === 'storno' ? 'Stornorechnung' : 'Rechnung'} ${inv.number}`, `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:2px"><span class="big">${eur(inv.gross)}</span>${chip(inv)}</div>
+    <div class="mini" style="margin-bottom:14px">${esc(custName(inv))}${inv.customer?.email ? ' · ' + esc(inv.customer.email) : ''}</div>
+    ${rel.length ? `<div class="note">${rel.join('<br>')}</div>` : ''}
+    <dl class="kv">
+      <dt>Rechnungsdatum</dt><dd>${fmtDate(inv.issue_date)}</dd>
+      ${inv.service_text ? `<dt>Leistung</dt><dd>${esc(inv.service_text)}</dd>` : ''}
+      ${isInv ? `<dt>Fällig am</dt><dd>${fmtDate(inv.due_date)}</dd>` : ''}
+      <dt>Netto / USt</dt><dd>${eur(inv.net)} / ${eur(inv.vat)}</dd>
+      <dt>Versendet</dt><dd>${inv.sent_at ? fmtDateTime(inv.sent_at) : 'noch nicht'}</dd>
+      ${isInv && inv.reminders_sent ? `<dt>Erinnerungen</dt><dd>${inv.reminders_sent}, zuletzt ${fmtDate(inv.last_reminder_at)}</dd>` : ''}
+      ${inv.paid_at ? `<dt>Bezahlt am</dt><dd>${fmtDate(String(inv.paid_at).slice(0, 10))}</dd>` : ''}
+      ${inv.recurring_id ? `<dt>Herkunft</dt><dd>Abo</dd>` : ''}
+    </dl>
+    <div class="actions">
+      <button class="btn ghost" data-x="pdf">PDF ansehen / teilen</button>
+      ${canAct && isInv && inv.status === 'open' ? '<button class="btn" data-x="paid">Als bezahlt markieren</button>' : ''}
+      ${canAct && isInv && inv.status === 'paid' ? '<button class="btn ghost" data-x="unpaid">Doch nicht bezahlt</button>' : ''}
+      ${canAct && isInv && inv.status === 'open' && st.key === 'overdue' ? '<button class="btn ghost" data-x="remind">Zahlungserinnerung jetzt senden</button>' : ''}
+      ${canAct ? '<button class="btn ghost" data-x="resend">Erneut an Kunden senden</button>' : ''}
+      ${canAct && isInv && ['open', 'paid'].includes(inv.status) ? '<button class="btn ghost" data-x="correct">Korrigieren (Storno + neue Rechnung)</button>' : ''}
+      ${canAct && isInv && ['open', 'paid'].includes(inv.status) ? '<button class="btn ghost danger" data-x="cancel">Stornieren</button>' : ''}
+    </div>
+    <h3 class="sub">Positionen</h3>
+    <ul class="mini">${(inv.items || []).map(it => `<li>${esc(fmtNum(it.quantity, 3))} ${esc(it.unit || '')} · ${esc(it.description)} · ${eur(r2(it.quantity * it.price))}</li>`).join('')}</ul>
+    <h3 class="sub" style="margin-top:14px">E-Mail-Verlauf</h3>
+    ${logs.length ? `<ul class="mini">${logs.map(m => `<li>${fmtDateTime(m.sent_at)} · ${typeLabel[m.type] || m.type} an ${esc(m.recipient)} ${m.status === 'sent' ? '✓' : `<span style="color:var(--bad)">fehlgeschlagen: ${esc(m.error)}</span>`}</li>`).join('')}</ul>` : '<p class="mini">Noch keine E-Mails.</p>'}
+  `);
+  $$('[data-goto]', el).forEach(b => b.onclick = () => { const t = invoiceById(b.dataset.goto); closeSheet(el); setTimeout(() => t.status === 'draft' ? invoiceEditor(t) : invoiceDetail(t), 220); });
+  const after = async msg => { closeSheet(el); await loadAll(); if (msg) toast(msg); };
+  bind(el, 'pdf', () => openPdf(inv));
+  bind(el, 'paid', async () => { const { error } = await sb.from('invoices').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('id', inv.id); if (error) throw error; await after('Als bezahlt markiert'); });
+  bind(el, 'unpaid', async () => { const { error } = await sb.from('invoices').update({ status: 'open', paid_at: null }).eq('id', inv.id); if (error) throw error; await after('Wieder als offen markiert'); });
+  bind(el, 'remind', async () => { if (!confirm('Zahlungserinnerung jetzt an den Kunden senden?')) return; const r = await callFn('remind', { id: inv.id }); await after(`Erinnerung an ${r.to} gesendet`); });
+  bind(el, 'resend', async () => { if (!confirm('Die Rechnung noch einmal an den Kunden senden?')) return; const r = await callFn('send', { id: inv.id }); await after(`An ${r.to} gesendet`); });
+  bind(el, 'correct', async () => {
+    if (!confirm(`Rechnung ${inv.number} korrigieren?\n\nSie wird storniert und als neuer Entwurf kopiert. Den Entwurf passt du an und schickst ihn ab. Der Kunde bekommt dann Storno und neue Rechnung zusammen.`)) return;
+    const r = await callFn('correct', { id: inv.id, mode: 'replace' });
+    closeSheet(el); await loadAll(); invoiceEditor(invoiceById(r.draft.id));
+  });
+  bind(el, 'cancel', async () => {
+    if (!confirm(`Rechnung ${inv.number} stornieren?\n\nEs wird eine Stornorechnung erstellt und an den Kunden geschickt.`)) return;
+    const r = await callFn('correct', { id: inv.id, mode: 'cancel' });
+    await after(r.mailError ? `Storniert, aber Versand fehlgeschlagen: ${r.mailError}` : 'Storniert und Stornorechnung versendet');
+  });
+}
+
+// ----- Kunden -----
+function viewCustomers() {
+  const list = state.customers;
+  return `${list.length ? `<div class="list">${list.map(c => {
+      const open = state.invoices.filter(i => i.customer_id === c.id && ['open', 'overdue'].includes(invStatus(i).key)).reduce((a, i) => a + +i.gross, 0);
+      return `<button class="row" data-open-cust="${c.id}"><div class="row-main"><b>${esc(c.name)}</b><small>${esc([c.contact, c.email || 'keine E-Mail', c.city].filter(Boolean).join(' · '))}</small></div>
+        <div class="row-side">${open ? `<b>${eur(open)}</b><span class="chip warn">offen</span>` : ''}</div></button>`;
+    }).join('')}</div>` : '<div class="empty"><b>Noch keine Kunden</b>Leg deinen ersten Kunden an.</div>'}
+    <button class="btn fab" data-fab>+ Kunde</button>`;
+}
+
+function customerEditor(c, onSaved) {
+  const isNew = !c; c = c || { country: 'Deutschland' };
+  const el = openSheet(isNew ? 'Neuer Kunde' : 'Kunde bearbeiten', `
+    <label>Firma oder Name<input name="name" value="${esc(c.name)}" required></label>
+    <label>Ansprechpartner (für die Anrede)<input name="contact" value="${esc(c.contact)}" placeholder="z. B. Frau Schulz"></label>
+    <label>E-Mail für Rechnungen<input name="email" type="email" inputmode="email" value="${esc(c.email)}"></label>
+    <label>Straße und Hausnummer<input name="street" value="${esc(c.street)}"></label>
+    <div class="grid3"><label>PLZ<input name="zip" inputmode="numeric" value="${esc(c.zip)}"></label><label>Ort<input name="city" value="${esc(c.city)}"></label></div>
+    <div class="grid2"><label>Land<input name="country" value="${esc(c.country)}"></label><label>USt-IdNr. (optional)<input name="vat_id" value="${esc(c.vat_id)}"></label></div>`,
+    `${isNew ? '' : '<button class="btn ghost danger" data-x="del">Löschen</button>'}<button class="btn" data-x="save">Speichern</button>`);
+  const read = () => Object.fromEntries(['name', 'contact', 'email', 'street', 'zip', 'city', 'country', 'vat_id'].map(k => [k, $(`[name=${k}]`, el).value.trim() || null]));
+  bind(el, 'save', async () => {
+    const d = read(); if (!d.name) throw new Error('Bitte einen Namen eintragen.');
+    let saved;
+    if (isNew) { const { data, error } = await sb.from('customers').insert(d).select().single(); if (error) throw error; saved = data; }
+    else { const { data, error } = await sb.from('customers').update(d).eq('id', c.id).select().single(); if (error) throw error; saved = data; }
+    closeSheet(el); await loadAll(); onSaved?.(saved); toast('Kunde gespeichert');
+  });
+  bind(el, 'del', async () => {
+    if (!confirm(`${c.name} löschen? Bereits ausgestellte Rechnungen bleiben erhalten.`)) return;
+    const { error } = await sb.from('customers').delete().eq('id', c.id);
+    if (error) throw new Error(/foreign key|violates/i.test(error.message) ? 'Zu diesem Kunden gibt es noch ein Abo. Lösche zuerst das Abo.' : error.message);
+    closeSheet(el); await loadAll(); toast('Kunde gelöscht');
+  });
+  setTimeout(() => isNew && $('[name=name]', el).focus(), 250);
+}
+
+// ----- Abos -----
+function viewRecurring() {
+  const list = state.recurring;
+  return `<div class="note">Abos erzeugen am Stichtag automatisch eine Rechnung und schicken sie, wenn gewünscht, direkt an den Kunden. Der Server prüft das jeden Morgen.</div>
+    ${list.length ? `<div class="list">${list.map(r => `
+      <button class="row" data-open-rec="${r.id}"><div class="row-main"><b>${esc(customerById(r.customer_id)?.name || 'Kunde fehlt')}${r.title ? ' · ' + esc(r.title) : ''}</b>
+        <small>${INTERVALS[r.interval]} · nächste Rechnung ${fmtDate(r.next_date)}${r.auto_send ? ' · automatischer Versand' : ' · nur erstellen'}</small></div>
+        <div class="row-side"><b>${eur(totals(r.items).gross)}</b>${r.active ? '<span class="chip ok">aktiv</span>' : '<span class="chip grey">pausiert</span>'}</div></button>`).join('')}</div>`
+      : '<div class="empty"><b>Noch keine Abos</b>Zum Beispiel für monatliches Hosting oder Betreuung.</div>'}
+    <button class="btn fab" data-fab>+ Abo</button>`;
+}
+
+function firstOfNextMonth() { const [y, m] = todayISO().split('-').map(Number); return new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10); }
+
+function recurringEditor(r) {
+  const isNew = !r;
+  r = r || { items: [{ quantity: 1, unit: 'Monat', vat: 19 }], interval: 'monthly', next_date: firstOfNextMonth(), auto_send: true, active: true };
+  const el = openSheet(isNew ? 'Neues Abo' : 'Abo bearbeiten', `
+    <label>Kunde<div class="inline"><select name="customer_id">${custOptions(r.customer_id)}</select><button type="button" class="btn ghost sm" data-x="newcust">+ Neu</button></div></label>
+    <label>Bezeichnung (optional, erscheint auf der Rechnung)<input name="title" value="${esc(r.title)}" placeholder="z. B. Hosting & Betreuung"></label>
+    <div class="grid2">
+      <label>Rhythmus<select name="interval">${Object.entries(INTERVALS).map(([k, l]) => `<option value="${k}" ${r.interval === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      <label>Nächste Rechnung am<input name="next_date" type="date" value="${esc(r.next_date)}"></label>
+    </div>
+    <h3 class="sub">Positionen je Rechnung</h3>
+    ${itemsEditor(r.items)}
+    <label class="check"><input type="checkbox" name="auto_send" ${r.auto_send ? 'checked' : ''}>Rechnung automatisch an den Kunden senden</label>
+    <label class="check"><input type="checkbox" name="active" ${r.active ? 'checked' : ''}>Abo aktiv</label>
+    <p class="mini">Als Leistungszeitraum steht auf der Rechnung automatisch der jeweilige Abrechnungszeitraum, z. B. 01.11.2026 – 30.11.2026.</p>`,
+    `${isNew ? '' : '<button class="btn ghost danger" data-x="del">Löschen</button><button class="btn ghost" data-x="now">Jetzt Rechnung erzeugen</button>'}<button class="btn" data-x="save">Speichern</button>`);
+  wireItems(el);
+  const collect = () => ({
+    customer_id: $('[name=customer_id]', el).value || null, title: $('[name=title]', el).value.trim() || null,
+    interval: $('[name=interval]', el).value, next_date: $('[name=next_date]', el).value, items: readItems(el),
+    auto_send: $('[name=auto_send]', el).checked, active: $('[name=active]', el).checked,
+  });
+  const save = async () => {
+    const d = collect();
+    if (!d.customer_id) throw new Error('Bitte einen Kunden wählen.');
+    if (!d.items.length) throw new Error('Bitte mindestens eine Position eintragen.');
+    if (!d.next_date) throw new Error('Bitte ein Datum für die nächste Rechnung wählen.');
+    if (d.auto_send && !customerById(d.customer_id)?.email) throw new Error('Für automatischen Versand braucht der Kunde eine E-Mail-Adresse.');
+    if (isNew) { const { data, error } = await sb.from('recurring').insert(d).select().single(); if (error) throw error; r.id = data.id; }
+    else { const { error } = await sb.from('recurring').update(d).eq('id', r.id); if (error) throw error; }
+  };
+  bind(el, 'save', async () => { await save(); closeSheet(el); await loadAll(); toast('Abo gespeichert'); });
+  bind(el, 'now', async () => {
+    if (!confirm('Jetzt die Rechnung für den nächsten Zeitraum erzeugen' + ($('[name=auto_send]', el).checked ? ' und versenden' : '') + '?')) return;
+    await save(); const res = await callFn('run_recurring', { id: r.id });
+    closeSheet(el); await loadAll(); toast(`Rechnung ${res.invoice.number} erstellt${res.mail ? ' und versendet' : ''}`);
+  });
+  bind(el, 'del', async () => { if (!confirm('Abo löschen? Bereits erstellte Rechnungen bleiben erhalten.')) return; const { error } = await sb.from('recurring').delete().eq('id', r.id); if (error) throw error; closeSheet(el); await loadAll(); toast('Abo gelöscht'); });
+  bind(el, 'newcust', () => customerEditor(null, c => { $('[name=customer_id]', el).innerHTML = custOptions(c.id); }));
+}
+
+// ----- Einstellungen -----
+function viewSettings() {
+  const s = S();
+  const f = (k, label, attrs = '') => `<label>${label}<input data-s="${k}" value="${esc(s[k])}" ${attrs}></label>`;
+  const ta = (k, label, rows = 3) => `<label>${label}<textarea data-s="${k}" rows="${rows}">${esc(s[k])}</textarea></label>`;
+  const cb = (k, label) => `<label class="check"><input type="checkbox" data-s="${k}" ${s[k] && s[k] !== 'false' ? 'checked' : ''}>${label}</label>`;
+  const tpl = (k, label) => `<h3 class="sub">${label}</h3>${f(`tpl_${k}_subject`, 'Betreff')}${ta(`tpl_${k}_body`, 'Text', 7)}`;
+  return `
+  <div class="section"><h3>Deine Firma</h3><p class="hint">Diese Angaben stehen auf jeder Rechnung.</p>
+    ${f('name', 'Firmenname')}${f('owner', 'Inhaber / Geschäftsführung (Fußzeile)', 'placeholder="z. B. Geschäftsführer: Max Mustermann"')}
+    ${f('street', 'Straße und Hausnummer')}
+    <div class="grid3">${f('zip', 'PLZ', 'inputmode="numeric"')}${f('city', 'Ort')}</div>
+    <div class="grid2">${f('phone', 'Telefon', 'type="tel"')}${f('email', 'E-Mail', 'type="email"')}</div>
+    ${f('website', 'Website')}
+  </div>
+  <div class="section"><h3>Steuer und Bank</h3><p class="hint">Steuernummer oder USt-IdNr. ist Pflicht auf jeder Rechnung.</p>
+    <div class="grid2">${f('tax_number', 'Steuernummer')}${f('vat_id', 'USt-IdNr.')}</div>
+    ${f('register', 'Handelsregister (falls vorhanden)', 'placeholder="z. B. Amtsgericht Hamburg HRB 12345"')}
+    ${f('bank', 'Bank')}
+    <div class="grid2">${f('iban', 'IBAN')}${f('bic', 'BIC')}</div>
+  </div>
+  <div class="section"><h3>Rechnungen</h3>
+    <div class="grid2">${f('prefix', 'Nummern-Präfix', 'placeholder="RE-"')}${f('payment_days', 'Zahlungsziel in Tagen', 'inputmode="numeric"')}</div>
+    ${ta('intro', 'Standard-Einleitung', 2)}${ta('closing', 'Schlusssatz', 2)}
+    <label>Akzentfarbe im PDF<input data-s="accent" type="color" value="${esc(s.accent || '#2454d6')}" style="height:44px;padding:4px"></label>
+  </div>
+  <div class="section"><h3>E-Mail-Versand</h3><p class="hint">Die Absenderadresse muss bei deinem Mail-Dienst bestätigt sein.</p>
+    <div class="grid2">${f('sender_name', 'Absendername')}${f('sender_email', 'Absender-E-Mail', 'type="email" placeholder="rechnung@medialyte.de"')}</div>
+    ${f('reply_to', 'Antworten gehen an', 'type="email"')}
+    ${cb('bcc_self', 'Kopie jeder E-Mail an mich')}
+    <button class="btn ghost sm" data-test-mail>Test-Mail an mich senden</button>
+  </div>
+  <div class="section"><h3>Zahlungserinnerungen</h3>
+    ${cb('reminders_enabled', 'Automatisch an überfällige Rechnungen erinnern')}
+    <div class="grid2">${f('reminder_interval', 'Tage zwischen Erinnerungen', 'inputmode="numeric"')}${f('max_reminders', 'Höchstens so viele Erinnerungen', 'inputmode="numeric"')}</div>
+    <p class="hint" style="margin:0">Die erste Erinnerung geht raus, wenn eine Rechnung so viele Tage überfällig ist.</p>
+  </div>
+  <div class="section"><h3>E-Mail-Texte</h3><p class="hint">Platzhalter: {anrede} {nummer} {alte_nummer} {kunde} {betrag} {datum} {faellig} {leistung} {firma}</p>
+    ${tpl('invoice', 'Neue Rechnung')}${tpl('reminder', 'Zahlungserinnerung')}${tpl('correction', 'Korrigierte Rechnung')}${tpl('cancel', 'Stornierung')}
+    <button class="btn ghost sm" data-reset-tpl>Texte auf Standard zurücksetzen</button>
+  </div>
+  <div class="bar"><button class="btn" data-save-settings style="flex:1">Einstellungen speichern</button><button class="btn ghost" data-logout>Abmelden</button></div>
+  <p class="mini">Angemeldet als ${esc(state.session?.user?.email)}</p>`;
+}
+function wireSettings() {
+  const read = () => {
+    const out = { ...S() };
+    $$('[data-s]').forEach(i => { const k = i.dataset.s; out[k] = i.type === 'checkbox' ? i.checked : i.value.trim(); });
+    for (const k of ['payment_days', 'reminder_interval', 'max_reminders']) out[k] = Math.max(0, parseInt(out[k], 10) || 0);
+    if (out.iban) out.iban = out.iban.replace(/\s+/g, '').toUpperCase();
+    return out;
+  };
+  const save = async () => {
+    const company = read();
+    const { error } = await sb.from('settings').upsert({ user_id: state.session.user.id, company, updated_at: new Date().toISOString() });
+    if (error) throw error;
+    state.settings = company; cacheSave();
+  };
+  const b = $('[data-save-settings]'); b.onclick = () => run(b, async () => { await save(); toast('Einstellungen gespeichert'); });
+  const t = $('[data-test-mail]'); t.onclick = () => run(t, async () => { await save(); const r = await callFn('test_mail'); toast(`Test-Mail an ${r.to} gesendet`); });
+  $('[data-reset-tpl]').onclick = () => { $$('[data-s^="tpl_"]').forEach(i => { i.value = DEFAULTS[i.dataset.s]; }); toast('Zurückgesetzt – zum Übernehmen speichern'); };
+  $('[data-logout]').onclick = async () => { if (!confirm('Abmelden?')) return; try { localStorage.removeItem(CACHE_KEY); } catch {} await sb.auth.signOut(); };
+}
+
+// ---------- Start ----------
+async function start() {
+  if (!configured) return render();
+  const { data } = await sb.auth.getSession();
+  state.session = data.session;
+  if (state.session) { if (cacheLoad()) state.loaded = true; render(); loadAll(); } else render();
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'INITIAL_SESSION') return;
+    const had = !!state.session; state.session = session;
+    if (session && !had) { if (cacheLoad()) state.loaded = true; render(); setTimeout(loadAll, 0); }
+    else if (!session && had) { state.loaded = false; render(); }
+  });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && state.session && !$('.sheet-wrap')) loadAll(); });
+  window.addEventListener('online', () => state.session && loadAll());
+}
+start();
+
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>

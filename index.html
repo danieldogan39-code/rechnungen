@@ -411,6 +411,8 @@ const CACHE_KEY = 'rechnungen-cache-v2';
 // Jede Änderung geht sofort an den Server. Ohne Internet landet sie in einer Warteschlange
 // (auf dem Gerät gespeichert) und wird automatisch übertragen, sobald wieder Netz da ist.
 const NATIVE = !!window.Capacitor?.isNativePlatform?.();
+// Native Bausteine der Android-App (Dateien, PDF öffnen, Zurück-Taste)
+const plugin = name => { try { return NATIVE ? (window.Capacitor.Plugins[name] ||= window.Capacitor.registerPlugin(name)) : null; } catch { return null; } };
 const OUTBOX_KEY = 'rechnungen-outbox-v1', FAILED_KEY = 'rechnungen-failed-v1';
 const TABLE_STATE = { customers: 'customers', invoices: 'invoices', quotes: 'quotes', products: 'products', recurring: 'recurring', mail_log: 'mail' };
 const readLS = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || 'null') ?? d; } catch { return d; } };
@@ -671,7 +673,7 @@ const chip = inv => { const s = invStatus(inv); return `${pendChip(inv.id)}<span
 
 // Android-App: PDF als Datei ablegen und mit dem PDF-Programm des Handys öffnen
 async function openPdfNative(blob, name) {
-  const { Filesystem, FileOpener } = window.Capacitor.Plugins;
+  const Filesystem = plugin('Filesystem'), FileOpener = plugin('FileOpener');
   const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(blob); });
   const w = await Filesystem.writeFile({ path: `pdf/${name}`, data, directory: 'CACHE', recursive: true });
   try { await FileOpener.open({ filePath: w.uri, contentType: 'application/pdf', openWithDefault: true }); }
@@ -1816,10 +1818,13 @@ async function start() {
   window.addEventListener('offline', () => { state.offline = true; updateSyncUi(); });
   setInterval(() => { if (outbox.length && online() && state.session) flush().then(n => n && !$('.sheet-wrap') && loadAll()); }, 60000);
   if (NATIVE) {
-    const { App } = window.Capacitor.Plugins;
+    const App = plugin('App');
     // Zurück-Taste: offenes Fenster schließen, sonst App in den Hintergrund
     App?.addListener('backButton', () => { const s = $$('.sheet-wrap'); if (s.length) closeSheet(s[s.length - 1]); else App.minimizeApp(); });
     document.documentElement.classList.add('native');
+    window.addEventListener('error', e => console.error('[medialyte] Fehler:', e.message, e.filename, e.lineno));
+    window.addEventListener('unhandledrejection', e => console.error('[medialyte] Fehler:', e.reason?.message || e.reason));
+    console.info('[medialyte] App', window.APP_VERSION, '| online', online(), '| angemeldet', !!state.session, '| Plugins', ['App', 'Filesystem', 'FileOpener'].map(n => `${n}:${window.Capacitor.isPluginAvailable(n)}`).join(' '), '| Warteschlange', outbox.length);
     setTimeout(checkAppUpdate, 4000);
   }
 }

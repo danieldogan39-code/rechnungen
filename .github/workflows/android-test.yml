@@ -1,0 +1,49 @@
+# Startet die zuletzt veröffentlichte APK im Android-Emulator (online + offline) und legt
+# Bildschirmfotos und Log unter dem Vorab-Release "ci-smoketest" ab.
+name: Android-App testen
+
+on:
+  workflow_run:
+    workflows: ["Android-App bauen"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  smoketest:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: KVM aktivieren
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Neueste APK laden
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download --pattern medialyte-rechnungen.apk --output app.apk
+
+      - name: Im Emulator starten
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash native/ci/smoketest.sh smoke
+
+      - name: Ergebnis veröffentlichen
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete ci-smoketest -y --cleanup-tag || true
+          sleep 3
+          gh release create ci-smoketest smoke/* --prerelease --title "Automatischer App-Test" --notes "Bildschirmfotos und Log des letzten Emulator-Tests. Nicht zum Installieren."

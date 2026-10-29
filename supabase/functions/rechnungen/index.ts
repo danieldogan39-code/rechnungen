@@ -1,7 +1,7 @@
 // Edge Function "rechnungen": PDF, Abschließen, Versand, Korrektur/Storno, Abos, Zahlungserinnerungen.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { buildInvoicePdf } from "./pdf.ts";
-import { addDays, addMonths, DEFAULTS, eur, fill, fmtDate, today, totals } from "./util.ts";
+import { addDays, addMonths, BILLING_SUFFIX, DEFAULTS, eur, fill, fmtDate, splitByBilling, today, totals } from "./util.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
@@ -519,7 +519,10 @@ async function sendQuote(uid: string, id: string) {
     nummer: q.number ?? "",
     kunde: q.customer?.name ?? "",
     anrede: q.customer?.contact ? `Guten Tag ${q.customer.contact}` : "Sehr geehrte Damen und Herren",
-    betrag: eur(Number(q.gross)),
+    betrag: splitByBilling(q.items).map((g) => {
+      const v = eur(totals(g.items, isOn(s.small_business)).gross);
+      return g.billing === "once" ? (splitByBilling(q.items).length > 1 ? `${v} einmalig` : v) : v + BILLING_SUFFIX[g.billing];
+    }).join(" zzgl. "),
     datum: fmtDate(q.issue_date),
     gueltig: fmtDate(q.valid_until),
     leistung: q.service_text ?? "",

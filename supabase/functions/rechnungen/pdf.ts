@@ -2,7 +2,7 @@
 import { degrees, PDFDocument, type PDFFont, type PDFPage, rgb, StandardFonts } from "npm:pdf-lib@1.17.1";
 import fontkit from "npm:@pdf-lib/fontkit@1.1.1";
 import qrcode from "npm:qrcode-generator@2.0.4";
-import { eur, fmtDate, formatIban, type Item, lineNet, qty, totals } from "./util.ts";
+import { BILLING_LABEL, BILLING_SUFFIX, billingOf, eur, fmtDate, formatIban, type Item, lineNet, qty, splitByBilling, totals } from "./util.ts";
 
 const MM = 72 / 25.4;
 const W = 595.28;
@@ -373,35 +373,55 @@ export async function buildInvoicePdf({ inv, company: c, ref, fonts }: PdfInput)
     if (hasDisc) T(page, Number(it.discount) > 0 ? `${qty(Number(it.discount))} %` : "–", col("disc").right, top, o);
     if (showVat) T(page, `${qty(Number(it.vat))} %`, col("vat").right, top, o);
     T(page, eur(lineNet(it)).replace(/\s?€/, ""), col("total").right, top, { ...o, font: fm, color: ink });
+    if (isQuote && billingOf(it) !== "once") {
+      T(page, BILLING_LABEL[billingOf(it)].toLowerCase(), col("total").right, top - 12, { size: 7.5, font: fm, color: accent, align: "right" });
+    }
     y -= rowH;
     page.drawLine({ start: { x: ML, y: y + 12 }, end: { x: RIGHT, y: y + 12 }, thickness: 0.4, color: hair });
   });
 
   // ---------- Summen ----------
   y -= 4;
-  const sumRows = small ? 0 : 1 + t.vatLines.length;
-  if (y - (sumRows * 15 + 40) < BOTTOM) newPage();
   const lx = RIGHT - 78 * MM;
   const sumRow = (k: string, v: string) => {
     T(page, k, lx + 3 * MM, y, { size: 9.5, color: muted });
     T(page, v, RIGHT - 3 * MM, y, { size: 9.5, color: body, align: "right" });
     y -= 15;
   };
-  if (!small) {
-    sumRow("Summe netto", eur(t.net));
-    for (const v of t.vatLines) sumRow(`zzgl. USt ${qty(v.rate)} %`, eur(v.amount));
-    if (!t.vatLines.length) sumRow("USt", eur(0));
-  }
   const totH = 26;
-  y -= 4;
-  roundRect(page, lx, y - totH + 15, RIGHT - lx, totH, 7, { color: isStorno ? rgb(0.4, 0.467, 0.561) : ink });
-  const totLabel = (isQuote ? "Angebotssumme" : isStorno ? "Stornobetrag" : "Gesamtbetrag") + (small ? "*" : "");
-  T(page, totLabel, lx + 3 * MM, y - 2.5, { size: 11, font: fm, color: rgb(1, 1, 1) });
-  T(page, eur(t.gross), RIGHT - 3 * MM, y - 3, { size: 13, font: fb2, color: rgb(1, 1, 1), align: "right" });
-  y -= totH + 6;
+  const groups = isQuote ? splitByBilling(items) : [{ billing: "once", items }];
+  groups.forEach((g, gi) => {
+    const gt = totals(g.items, small);
+    const sumRows = small ? 0 : 1 + gt.vatLines.length;
+    if (y - (sumRows * 15 + 40) < BOTTOM) newPage();
+    if (!small) {
+      sumRow(groups.length > 1 ? `${BILLING_LABEL[g.billing]} netto` : "Summe netto", eur(gt.net) + BILLING_SUFFIX[g.billing]);
+      for (const v of gt.vatLines) sumRow(`zzgl. USt ${qty(v.rate)} %`, eur(v.amount) + BILLING_SUFFIX[g.billing]);
+      if (!gt.vatLines.length) sumRow("USt", eur(0));
+    }
+    y -= 4;
+    const primary = gi === 0;
+    const boxColor = isStorno ? rgb(0.4, 0.467, 0.561) : primary ? ink : rgb(1, 1, 1);
+    roundRect(page, lx, y - totH + 15, RIGHT - lx, totH, 7, primary ? { color: boxColor } : { color: boxColor, border: ink, bw: 1 });
+    const label = isQuote
+      ? (groups.length === 1 && g.billing === "once" ? "Angebotssumme" : g.billing === "once" ? "Einmalig" : BILLING_LABEL[g.billing])
+      : isStorno ? "Stornobetrag" : "Gesamtbetrag";
+    const txt = primary ? rgb(1, 1, 1) : ink;
+    T(page, label + (small ? "*" : ""), lx + 3 * MM, y - 2.5, { size: 11, font: fm, color: txt });
+    T(page, eur(gt.gross) + BILLING_SUFFIX[g.billing], RIGHT - 3 * MM, y - 3, { size: 13, font: fb2, color: txt, align: "right" });
+    y -= totH + 8;
+  });
+  y += 2;
   if (small) {
     T(page, "* Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.", RIGHT, y, { size: 8, color: muted, align: "right" });
     y -= 12;
+  }
+  if (isQuote && groups.some((g) => g.billing !== "once")) {
+    y -= 2;
+    for (const ln of wrap("Laufende Leistungen werden ab Beginn der Zusammenarbeit im jeweiligen Rhythmus im Voraus berechnet.", f, 8.5, CW)) {
+      T(page, ln, ML, y, { size: 8.5, color: muted });
+      y -= 12;
+    }
   }
 
   // ---------- Zahlung ----------

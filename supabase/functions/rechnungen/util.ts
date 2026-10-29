@@ -7,6 +7,19 @@ export interface Item {
   price?: number; // Einzelpreis netto
   vat?: number; // Steuersatz in Prozent
   discount?: number; // Rabatt in Prozent
+  billing?: string; // once | monthly | quarterly | yearly (nur in Angeboten relevant)
+}
+
+export const BILLING_LABEL: Record<string, string> = { once: "Einmalig", monthly: "Monatlich", quarterly: "Vierteljährlich", yearly: "Jährlich" };
+export const BILLING_SUFFIX: Record<string, string> = { once: "", monthly: " / Monat", quarterly: " / Quartal", yearly: " / Jahr" };
+export const billingOf = (it: Item) => (it.billing && it.billing in BILLING_LABEL ? it.billing : "once");
+
+// Positionen nach Abrechnungsart gruppieren (einmalig zuerst)
+export function splitByBilling(items: Item[] = []) {
+  const order = ["once", "monthly", "quarterly", "yearly"];
+  const groups: Record<string, Item[]> = {};
+  for (const it of items) (groups[billingOf(it)] ||= []).push(it);
+  return order.filter((k) => groups[k]?.length).map((k) => ({ billing: k, items: groups[k] }));
 }
 
 export const DEFAULTS: Record<string, unknown> = {

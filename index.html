@@ -147,6 +147,7 @@ h3.sub{font-size:15px;margin:8px 0 12px}
 .items{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
 .item{border:1px solid var(--line);border-radius:var(--r-sm);padding:12px;background:var(--field)}
 .item textarea{min-height:46px;margin-top:0;background:var(--bg-deep)}
+.item .i-bill{margin:0 0 8px;min-height:38px;padding:7px 36px 7px 12px;background-color:var(--bg-deep);font-size:14px;font-weight:500;color:var(--ink);width:auto;max-width:100%}
 .item-nums{display:grid;grid-template-columns:.9fr 1fr 1.2fr .8fr .9fr auto;gap:8px;align-items:end;margin-top:8px}
 .item-nums.no-vat{grid-template-columns:.9fr 1fr 1.2fr .8fr auto}
 .item-nums.no-vat .vat-col{display:none}
@@ -258,6 +259,14 @@ const num = v => { let s = String(v ?? '').trim().replace(/\s|€/g, ''); if (s.
 const fmtNum = (n, d = 2) => (+n || 0).toLocaleString('de-DE', { minimumFractionDigits: d === 2 ? 2 : 0, maximumFractionDigits: d === 2 ? 2 : 3, useGrouping: false });
 const S = () => state.settings;
 const INTERVALS = { monthly: 'monatlich', quarterly: 'vierteljährlich', yearly: 'jährlich' };
+const BILLING = { once: 'Einmalig (pauschal)', monthly: 'Abo · monatlich', quarterly: 'Abo · vierteljährlich', yearly: 'Abo · jährlich' };
+const BILL_SUFFIX = { once: '', monthly: ' / Monat', quarterly: ' / Quartal', yearly: ' / Jahr' };
+const billingOf = it => (it && BILLING[it.billing] ? it.billing : 'once');
+function splitByBilling(items = []) {
+  const g = {}; for (const it of items) (g[billingOf(it)] ||= []).push(it);
+  return ['once', 'monthly', 'quarterly', 'yearly'].filter(k => g[k]?.length).map(k => ({ billing: k, items: g[k] }));
+}
+const splitText = items => { const gs = splitByBilling(items); return gs.length ? gs.map(g => eur(totals(g.items).gross) + BILL_SUFFIX[g.billing]).join(' + ') : eur(0); };
 
 const isOn = v => v === true || v === 'true';
 const small = () => isOn(state.settings.small_business);
@@ -495,9 +504,10 @@ function wireInvoices() {
 
 // Positionen-Editor (für Rechnungen und Abos)
 const UNITS = ['Std.', 'Stk.', 'pauschal', 'Monat', 'Tag', 'Seite'];
-function itemRow(it = {}) {
+function itemRow(it = {}, withBilling = false) {
   const vat = small() ? 0 : (it.vat ?? 19);
   return `<div class="item">
+    ${withBilling ? `<select class="i-bill" aria-label="Abrechnungsart">${Object.entries(BILLING).map(([k, l]) => `<option value="${k}" ${billingOf(it) === k ? 'selected' : ''}>${l}</option>`).join('')}</select>` : ''}
     <textarea class="i-desc" rows="2" placeholder="Bezeichnung (erste Zeile, fett)&#10;Details in weiteren Zeilen (optional)">${esc(it.description)}</textarea>
     <div class="item-nums ${small() ? 'no-vat' : ''}">
       <label>Menge<input class="i-qty" inputmode="decimal" value="${esc(fmtNum(it.quantity ?? 1, 3))}"></label>
@@ -510,9 +520,9 @@ function itemRow(it = {}) {
     <div class="item-foot"><button type="button" class="linkbtn tpl-save" data-save-tpl>☆ Als Vorlage speichern</button><span class="i-line"></span></div>
   </div>`;
 }
-function itemsEditor(items) {
+function itemsEditor(items, withBilling = false) {
   return `<datalist id="units">${UNITS.map(u => `<option value="${u}">`).join('')}</datalist>
-    <div class="items">${(items?.length ? items : [{}]).map(itemRow).join('')}</div>
+    <div class="items" data-billing="${withBilling ? 1 : 0}">${(items?.length ? items : [{}]).map(it => itemRow(it, withBilling)).join('')}</div>
     <div class="bar" style="margin-bottom:6px"><button type="button" class="btn sm" data-pick-tpl>+ Aus Vorlagen</button><button type="button" class="btn ghost sm" data-add-item>+ Leere Position</button></div>
     <div class="totals"></div>`;
 }
@@ -520,26 +530,34 @@ function readItems(root) {
   return $$('.item', root).map(el => ({
     description: $('.i-desc', el).value.trim(), quantity: num($('.i-qty', el).value), unit: $('.i-unit', el).value.trim(),
     price: num($('.i-price', el).value), discount: num($('.i-disc', el).value), vat: small() ? 0 : +$('.i-vat', el).value,
+    ...($('.i-bill', el) ? { billing: $('.i-bill', el).value } : {}),
   })).filter(it => it.description || it.price);
 }
 function wireItems(root) {
   const box = $('.items', root);
+  const wb = box.dataset.billing === '1';
   const update = () => {
     $$('.item', root).forEach(el => { const l = lineNet({ quantity: num($('.i-qty', el).value), price: num($('.i-price', el).value), discount: num($('.i-disc', el).value) }); $('.i-line', el).textContent = l ? `= ${eur(l)}${small() ? '' : ' netto'}` : ''; });
     const t = totals(readItems(root));
+    const groups = splitByBilling(readItems(root));
+    if (wb && groups.some(g => g.billing !== 'once')) {
+      $('.totals', root).innerHTML = groups.map(g => { const gt = totals(g.items); return `<div class="g"><span>${g.billing === 'once' ? 'Einmalig' : INTERVALS[g.billing][0].toUpperCase() + INTERVALS[g.billing].slice(1)}</span><span>${eur(gt.gross)}${BILL_SUFFIX[g.billing]}</span></div>`; }).join('') + (small() ? '<div><span>ohne USt (§ 19 UStG)</span><span></span></div>' : '<div><span>jeweils inkl. USt</span><span></span></div>');
+      return;
+    }
     $('.totals', root).innerHTML = small() ? `<div class="g"><span>Gesamt</span><span>${eur(t.gross)}</span></div><div><span>ohne USt (§ 19 UStG)</span><span></span></div>` : `<div><span>Netto</span><span>${eur(t.net)}</span></div>${t.vatLines.map(v => `<div><span>USt ${v.rate} %</span><span>${eur(v.amount)}</span></div>`).join('')}<div class="g"><span>Gesamt</span><span>${eur(t.gross)}</span></div>`;
   };
   const grow = ta => { ta.style.height = 'auto'; ta.style.height = Math.max(44, ta.scrollHeight + 2) + 'px'; };
   root.addEventListener('input', e => { if (e.target.closest('.item')) { if (e.target.matches('.i-desc')) grow(e.target); update(); } });
   root.addEventListener('change', e => { if (e.target.closest('.item')) update(); });
-  $('[data-add-item]', root).onclick = () => { box.insertAdjacentHTML('beforeend', itemRow({ vat: $$('.i-vat', root).pop()?.value ?? 19 })); $$('.i-desc', root).pop().focus(); update(); };
-  box.addEventListener('click', e => { const d = e.target.closest('[data-del-item]'); if (!d) return; d.closest('.item').remove(); if (!$('.item', root)) box.insertAdjacentHTML('beforeend', itemRow()); update(); });
+  $('[data-add-item]', root).onclick = () => { box.insertAdjacentHTML('beforeend', itemRow({ vat: $$('.i-vat', root).pop()?.value ?? 19 }, wb)); $$('.i-desc', root).pop().focus(); update(); };
+  box.addEventListener('click', e => { const d = e.target.closest('[data-del-item]'); if (!d) return; d.closest('.item').remove(); if (!$('.item', root)) box.insertAdjacentHTML('beforeend', itemRow({}, wb)); update(); });
   $('[data-pick-tpl]', root).onclick = () => productPicker(p => {
     const it = productToItem(p);
     const rows = $$('.item', root);
     const last = rows[rows.length - 1];
     const emptyRow = last && !$('.i-desc', last).value.trim() && !num($('.i-price', last).value);
-    if (emptyRow) last.outerHTML = itemRow(it); else box.insertAdjacentHTML('beforeend', itemRow(it));
+    if (!wb && billingOf(it) !== 'once') toast('Hinweis: Abo-Positionen rechnest du am besten über ein Abo oder ein Angebot ab.');
+    if (emptyRow) last.outerHTML = itemRow(it, wb); else box.insertAdjacentHTML('beforeend', itemRow(it, wb));
     requestAnimationFrame(() => $$('.i-desc', root).forEach(grow));
     update(); toast(`„${p.name}“ hinzugefügt`);
   });
@@ -549,7 +567,7 @@ function wireItems(root) {
     const raw = $('.i-desc', el).value.trim();
     if (!raw) { toast('Bitte zuerst eine Bezeichnung eintragen.', true); return; }
     const [name, ...rest] = raw.split('\n');
-    const p = { name: name.trim(), details: rest.join('\n').trim() || null, unit: $('.i-unit', el).value.trim() || null, price: num($('.i-price', el).value), discount: num($('.i-disc', el).value), vat: small() ? 0 : +$('.i-vat', el).value };
+    const p = { name: name.trim(), details: rest.join('\n').trim() || null, unit: $('.i-unit', el).value.trim() || null, price: num($('.i-price', el).value), discount: num($('.i-disc', el).value), vat: small() ? 0 : +$('.i-vat', el).value, billing: $('.i-bill', el)?.value || 'once' };
     const dup = state.products.find(x => x.name.toLowerCase() === p.name.toLowerCase());
     run(b, async () => {
       if (dup && !confirm(`Es gibt schon eine Vorlage „${dup.name}“. Mit diesen Werten überschreiben?`)) return;
@@ -682,9 +700,9 @@ function invoiceDetail(inv) {
 }
 
 // ----- Standard-Positionen -----
-const productToItem = p => ({ description: p.details ? `${p.name}\n${p.details}` : p.name, quantity: 1, unit: p.unit || '', price: +p.price, discount: +p.discount || 0, vat: small() ? 0 : +p.vat });
+const productToItem = p => ({ description: p.details ? `${p.name}\n${p.details}` : p.name, quantity: 1, unit: p.unit || '', price: +p.price, discount: +p.discount || 0, vat: small() ? 0 : +p.vat, billing: billingOf(p) });
 async function reloadProducts() { const { data, error } = await sb.from('products').select('*').order('name'); if (!error) { state.products = data; cacheSave(); } }
-const productLine = p => `${esc(p.unit || 'Einheit')} · ${eur(p.price)}${+p.discount ? ` · −${fmtNum(p.discount, 3)} %` : ''}${small() ? '' : ` · ${fmtNum(p.vat, 3)} % USt`}`;
+const productLine = p => `${esc(BILLING[billingOf(p)])} · ${esc(p.unit || 'Einheit')} · ${eur(p.price)}${+p.discount ? ` · −${fmtNum(p.discount, 3)} %` : ''}${small() ? '' : ` · ${fmtNum(p.vat, 3)} % USt`}`;
 
 function productPicker(onPick) {
   const el = openSheet('Position aus Vorlagen', `
@@ -694,7 +712,7 @@ function productPicker(onPick) {
   const draw = () => {
     const q = $('[data-psearch]', el).value.trim().toLowerCase();
     const list = state.products.filter(p => !q || `${p.name} ${p.details || ''}`.toLowerCase().includes(q));
-    $('[data-plist]', el).innerHTML = list.length ? list.map(p => `<button class="pick" data-pid="${p.id}"><div class="row-main"><b>${esc(p.name)}</b>${p.details ? `<small>${esc(p.details)}</small>` : ''}</div><div class="row-side"><b>${eur(p.price)}</b><small class="mini">${esc(p.unit || '')}</small></div></button>`).join('')
+    $('[data-plist]', el).innerHTML = list.length ? list.map(p => `<button class="pick" data-pid="${p.id}"><div class="row-main"><b>${esc(p.name)}</b>${p.details ? `<small>${esc(p.details)}</small>` : ''}</div><div class="row-side"><b>${eur(p.price)}${BILL_SUFFIX[billingOf(p)]}</b>${billingOf(p) === 'once' ? '<span class="chip grey">Pauschal</span>' : `<span class="chip blue">Abo · ${INTERVALS[billingOf(p)]}</span>`}</div></button>`).join('')
       : `<div class="empty" style="padding:28px 12px;margin-bottom:12px"><b>${state.products.length ? 'Nichts gefunden' : 'Noch keine Vorlagen'}</b>${state.products.length ? '' : 'Speichere oft genutzte Leistungen als Vorlage.'}</div>`;
     $$('[data-pid]', el).forEach(b => b.onclick = () => { const p = state.products.find(x => x.id === b.dataset.pid); closeSheet(el); onPick(p); });
   };
@@ -708,6 +726,7 @@ function productEditor(p, onSaved) {
   p = p || { unit: 'pauschal', price: '', discount: 0, vat: 19 };
   const el = openSheet(isNew ? 'Neue Standard-Position' : 'Standard-Position bearbeiten', `
     <label>Bezeichnung (fett auf der Rechnung)<input name="name" value="${esc(p.name)}" placeholder="z. B. Website Management (monatlich)"></label>
+    <label>Abrechnungsart<select name="billing">${Object.entries(BILLING).map(([k, l]) => `<option value="${k}" ${billingOf(p) === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
     <label>Details (optional, kleiner darunter)<textarea name="details" rows="2" placeholder="z. B. Instandhaltung, Administration, Änderungen">${esc(p.details)}</textarea></label>
     <div class="grid2">
       <label>Einheit<input name="unit" list="units2" value="${esc(p.unit)}"><datalist id="units2">${UNITS.map(u => `<option value="${u}">`).join('')}</datalist></label>
@@ -720,7 +739,7 @@ function productEditor(p, onSaved) {
     `${isNew ? '' : '<button class="btn ghost danger" data-x="del">Löschen</button>'}<button class="btn" data-x="save">Speichern</button>`);
   bind(el, 'save', async () => {
     const d = { name: $('[name=name]', el).value.trim(), details: $('[name=details]', el).value.trim() || null, unit: $('[name=unit]', el).value.trim() || null,
-      price: num($('[name=price]', el).value), discount: num($('[name=discount]', el).value), vat: small() ? 0 : +$('[name=vat]', el).value };
+      price: num($('[name=price]', el).value), discount: num($('[name=discount]', el).value), vat: small() ? 0 : +$('[name=vat]', el).value, billing: $('[name=billing]', el).value };
     if (!d.name) throw new Error('Bitte eine Bezeichnung eintragen.');
     const r = isNew ? await sb.from('products').insert(d) : await sb.from('products').update(d).eq('id', p.id);
     if (r.error) throw r.error;
@@ -739,7 +758,7 @@ const quoteById = id => state.quotes.find(q => q.id === id);
 const quoteTotal = q => q.status === 'draft' ? totals(q.items).gross : +q.gross;
 function quoteStatus(q) {
   if (q.status === 'draft') return { key: 'draft', label: 'Entwurf', cls: 'blue' };
-  if (q.status === 'accepted') return { key: 'accepted', label: q.invoice_id ? 'Angenommen · berechnet' : 'Angenommen', cls: 'ok' };
+  if (q.status === 'accepted') return { key: 'accepted', label: (q.invoice_id || state.recurring.some(r => r.quote_id === q.id)) ? 'Angenommen · umgesetzt' : 'Angenommen', cls: 'ok' };
   if (q.status === 'declined') return { key: 'declined', label: 'Abgelehnt', cls: 'grey' };
   if (q.valid_until && q.valid_until < todayISO()) return { key: 'expired', label: 'Abgelaufen', cls: 'grey' };
   return { key: 'open', label: 'Offen', cls: 'warn' };
@@ -771,7 +790,7 @@ function viewQuotes() {
       <button class="row" data-open-quote="${x.id}">
         <div class="row-main"><b>${esc(x.customer?.name || customerById(x.customer_id)?.name || 'Ohne Kunde')}</b>
           <small>${esc(x.number || 'Entwurf')}${x.issue_date ? ' · ' + fmtDate(x.issue_date) : ''}${x.valid_until && x.status === 'sent' ? ' · gültig bis ' + fmtDate(x.valid_until) : ''}${x.service_text ? ' · ' + esc(x.service_text) : ''}</small></div>
-        <div class="row-side"><b>${eur(quoteTotal(x))}</b>${qchip(x)}</div>
+        <div class="row-side"><b>${splitText(x.items)}</b>${qchip(x)}</div>
       </button>`).join('')}</div>`
       : `<div class="empty"><b>${state.quotes.length ? 'Nichts gefunden' : 'Noch keine Angebote'}</b>${state.quotes.length ? 'Ändere den Filter oder die Suche.' : 'Leg mit dem Plus-Knopf dein erstes Angebot an.'}</div>`}
     <button class="btn fab" data-fab>+ Angebot</button>`;
@@ -797,7 +816,8 @@ function quoteEditor(q) {
     <p class="mini" style="margin:-6px 0 14px">Leer lassen = ${esc(S().quote_valid_days)} Tage ab Versand.</p>
     <label>Einleitungstext<textarea name="intro" rows="2">${esc(q.intro)}</textarea></label>
     <h3 class="sub">Positionen</h3>
-    ${itemsEditor(q.items)}
+    <p class="mini" style="margin:-4px 0 12px">Pro Position wählst du „Einmalig“ oder „Abo“. Nimmt der Kunde an, wird aus Einmaligem eine Rechnung und aus Abo-Positionen ein Abo.</p>
+    ${itemsEditor(q.items, true)}
     <label>Anmerkung (optional)<textarea name="notes" rows="2" placeholder="Erscheint unter der Angebotssumme">${esc(q.notes)}</textarea></label>
     ${sent ? '' : '<p class="mini"><button type="button" class="linkbtn" data-x="issueonly">Nur abschließen, ohne Versand</button></p>'}`,
     `${q.status === 'draft' && !isNew ? '<button class="btn ghost danger" data-x="del">Löschen</button>' : ''}
@@ -838,26 +858,57 @@ function quoteEditor(q) {
   bind(el, 'newcust', () => customerEditor(null, c => { $('[name=customer_id]', el).innerHTML = custOptions(c.id); }));
 }
 
-async function quoteToInvoice(q) {
-  const { data, error } = await sb.from('invoices').insert({
-    status: 'draft', kind: 'invoice', customer_id: q.customer_id, items: q.items,
-    service_text: q.service_text || '', intro: S().intro, notes: q.notes || '',
-  }).select().single();
-  if (error) throw error;
-  const { error: e2 } = await sb.from('quotes').update({ status: 'accepted', invoice_id: data.id, decided_at: q.decided_at || new Date().toISOString() }).eq('id', q.id);
-  if (e2) throw e2;
-  return data;
+// Angenommenes Angebot umsetzen: Einmaliges → Rechnungsentwurf, Abo-Positionen → Abo(s)
+function quoteAcceptSheet(q, onDone) {
+  const groups = splitByBilling(q.items);
+  const once = groups.find(g => g.billing === 'once');
+  const subs = groups.filter(g => g.billing !== 'once');
+  const start = firstOfNextMonth();
+  const el = openSheet(`Angebot ${q.number} umsetzen`, `
+    <p class="mini" style="margin:0 0 14px">Der Kunde hat zugesagt? Dann lege ich das an:</p>
+    ${once ? `<div class="section"><h3>Rechnungsentwurf</h3><p class="hint" style="margin:0">Einmalige Positionen über <b>${eur(totals(once.items).gross)}</b> (${once.items.length} ${once.items.length === 1 ? 'Position' : 'Positionen'}). Du prüfst den Entwurf und schickst ihn ab.</p></div>` : ''}
+    ${subs.map(g => `<div class="section"><h3>Abo · ${INTERVALS[g.billing]}</h3>
+      <p class="hint">${eur(totals(g.items).gross)}${BILL_SUFFIX[g.billing]} · ${g.items.map(it => esc(String(it.description || '').split('\n')[0])).join(', ')}</p>
+      <label>Erste Abo-Rechnung am<input type="date" data-start="${g.billing}" value="${start}"></label>
+      <label class="check" style="margin:0"><input type="checkbox" data-auto="${g.billing}" checked>Automatisch an den Kunden senden</label></div>`).join('')}`,
+    `<button class="btn" data-x="go">Angebot annehmen &amp; anlegen</button>`);
+  bind(el, 'go', async () => {
+    const res = { invoice: null, abos: 0 };
+    if (once) {
+      const { data, error } = await sb.from('invoices').insert({
+        status: 'draft', kind: 'invoice', customer_id: q.customer_id, items: once.items.map(({ billing, ...it }) => it),
+        service_text: q.service_text || '', intro: S().intro, notes: q.notes || '',
+      }).select().single();
+      if (error) throw error; res.invoice = data;
+    }
+    for (const g of subs) {
+      const d = $(`[data-start="${g.billing}"]`, el).value;
+      if (!d) throw new Error('Bitte ein Startdatum für das Abo wählen.');
+      const { error } = await sb.from('recurring').insert({
+        customer_id: q.customer_id, title: `${String(g.items[0].description || '').split('\n')[0]}${g.items.length > 1 ? ` + ${g.items.length - 1} weitere` : ''}`,
+        items: g.items.map(({ billing, ...it }) => it), interval: g.billing, next_date: d,
+        auto_send: $(`[data-auto="${g.billing}"]`, el).checked, active: true, quote_id: q.id,
+      });
+      if (error) throw error; res.abos++;
+    }
+    const { error: e2 } = await sb.from('quotes').update({ status: 'accepted', invoice_id: res.invoice?.id || null, decided_at: q.decided_at || new Date().toISOString() }).eq('id', q.id);
+    if (e2) throw e2;
+    closeSheet(el); await loadAll();
+    onDone?.(res);
+  });
 }
 
 function quoteDetail(q) {
   const st = quoteStatus(q);
   const logs = state.mail.filter(m => m.quote_id === q.id);
   const inv = q.invoice_id && invoiceById(q.invoice_id);
+  const abos = state.recurring.filter(r => r.quote_id === q.id);
+  const done = inv || abos.length;
   const canAct = !state.offline;
   const el = openSheet(`Angebot ${q.number}`, `
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:2px"><span class="big">${eur(q.gross)}</span>${qchip(q)}</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:2px"><span class="big" style="font-size:${splitByBilling(q.items).length > 1 ? 28 : 38}px">${splitText(q.items)}</span>${qchip(q)}</div>
     <div class="mini" style="margin-bottom:14px">${esc(q.customer?.name || customerById(q.customer_id)?.name || '')}${q.customer?.email ? ' · ' + esc(q.customer.email) : ''}</div>
-    ${inv ? `<div class="note">Berechnet mit <button class="linkbtn" data-goto-inv="${inv.id}">${esc(inv.number || 'Rechnungsentwurf')}</button></div>` : ''}
+    ${done ? `<div class="note">${inv ? `Einmaliges berechnet mit <button class="linkbtn" data-goto-inv="${inv.id}">${esc(inv.number || 'Rechnungsentwurf')}</button>` : ''}${inv && abos.length ? '<br>' : ''}${abos.map(r => `Abo ${INTERVALS[r.interval]} · nächste Rechnung ${fmtDate(r.next_date)} <button class="linkbtn" data-goto-rec="${r.id}">öffnen</button>`).join('<br>')}</div>` : ''}
     <dl class="kv">
       <dt>Angebotsdatum</dt><dd>${fmtDate(q.issue_date)}</dd>
       <dt>Gültig bis</dt><dd>${fmtDate(q.valid_until)}</dd>
@@ -867,15 +918,15 @@ function quoteDetail(q) {
     </dl>
     <div class="actions">
       <button class="btn ghost" data-x="pdf">PDF ansehen / teilen</button>
-      ${canAct && !inv && q.status !== 'declined' ? '<button class="btn" data-x="invoice">Angenommen – in Rechnung umwandeln</button>' : ''}
+      ${canAct && !done && q.status !== 'declined' ? `<button class="btn" data-x="invoice">${splitByBilling(q.items).some(g => g.billing !== 'once') ? 'Angenommen – Rechnung &amp; Abo anlegen' : 'Angenommen – in Rechnung umwandeln'}</button>` : ''}
       ${canAct && q.status === 'sent' ? '<button class="btn ghost" data-x="accept">Nur als angenommen markieren</button>' : ''}
       ${canAct && q.status === 'sent' ? '<button class="btn ghost" data-x="edit">Bearbeiten</button>' : ''}
       ${canAct && ['sent', 'accepted'].includes(q.status) ? '<button class="btn ghost" data-x="resend">Erneut an Kunden senden</button>' : ''}
       ${canAct && q.status === 'sent' ? '<button class="btn ghost danger" data-x="decline">Als abgelehnt markieren</button>' : ''}
-      ${canAct && ['accepted', 'declined'].includes(q.status) && !inv ? '<button class="btn ghost" data-x="reopen">Wieder auf offen setzen</button>' : ''}
+      ${canAct && ['accepted', 'declined'].includes(q.status) && !done ? '<button class="btn ghost" data-x="reopen">Wieder auf offen setzen</button>' : ''}
     </div>
     <h3 class="sub">Positionen</h3>
-    <ul class="mini">${(q.items || []).map(it => `<li>${esc(fmtNum(it.quantity, 3))} ${esc(it.unit || '')} · ${esc(String(it.description || '').split('\n')[0])} · ${eur(lineNet(it))}</li>`).join('')}</ul>
+    <ul class="mini">${(q.items || []).map(it => `<li>${esc(fmtNum(it.quantity, 3))} ${esc(it.unit || '')} · ${esc(String(it.description || '').split('\n')[0])} · ${eur(lineNet(it))}${BILL_SUFFIX[billingOf(it)]}</li>`).join('')}</ul>
     <h3 class="sub" style="margin-top:14px">E-Mail-Verlauf</h3>
     ${logs.length ? `<ul class="mini">${logs.map(m => `<li>${fmtDateTime(m.sent_at)} · an ${esc(m.recipient)} ${m.status === 'sent' ? '✓' : `<span style="color:var(--bad)">fehlgeschlagen: ${esc(m.error)}</span>`}</li>`).join('')}</ul>` : '<p class="mini">Noch keine E-Mails.</p>'}`);
   $$('[data-goto-inv]', el).forEach(b => b.onclick = () => { const t = invoiceById(b.dataset.gotoInv); closeSheet(el); setTimeout(() => t.status === 'draft' ? invoiceEditor(t) : invoiceDetail(t), 220); });
@@ -884,12 +935,12 @@ function quoteDetail(q) {
     if (error) throw error; closeSheet(el); await loadAll(); toast(msg);
   };
   bind(el, 'pdf', () => openPdf({ ...q, kind: 'quote' }));
-  bind(el, 'invoice', async () => {
-    if (!confirm(`Angebot ${q.number} als angenommen markieren und daraus einen Rechnungsentwurf erstellen?`)) return;
-    const d = await quoteToInvoice(q);
-    closeSheet(el); await loadAll(); state.tab = 'invoices'; render(); invoiceEditor(invoiceById(d.id));
-    toast('Rechnungsentwurf aus dem Angebot erstellt – prüfen und abschicken');
-  });
+  $$('[data-goto-rec]', el).forEach(b => b.onclick = () => { const r = state.recurring.find(x => x.id === b.dataset.gotoRec); closeSheet(el); state.tab = 'recurring'; render(); setTimeout(() => recurringEditor(r), 220); });
+  bind(el, 'invoice', () => { closeSheet(el); setTimeout(() => quoteAcceptSheet(q, res => {
+    if (res.invoice) { state.tab = 'invoices'; render(); invoiceEditor(invoiceById(res.invoice.id)); }
+    else { state.tab = 'recurring'; render(); }
+    toast(res.invoice && res.abos ? `Rechnungsentwurf und ${res.abos === 1 ? 'Abo' : res.abos + ' Abos'} angelegt` : res.invoice ? 'Rechnungsentwurf angelegt – prüfen und abschicken' : `${res.abos === 1 ? 'Abo' : res.abos + ' Abos'} angelegt`);
+  }), 220); });
   bind(el, 'accept', () => setStatus('accepted', 'Als angenommen markiert'));
   bind(el, 'decline', () => setStatus('declined', 'Als abgelehnt markiert'));
   bind(el, 'reopen', () => setStatus('sent', 'Wieder offen'));
@@ -946,7 +997,7 @@ function viewRecurring() {
   return `${pageHead('Abos', 'Wiederkehrende Rechnungen, die sich selbst schreiben')}<div class="note">Abos erzeugen am Stichtag automatisch eine Rechnung und schicken sie, wenn gewünscht, direkt an den Kunden. Der Server prüft das jeden Morgen.</div>
     ${list.length ? `<div class="list">${list.map(r => `
       <button class="row" data-open-rec="${r.id}"><div class="row-main"><b>${esc(customerById(r.customer_id)?.name || 'Kunde fehlt')}${r.title ? ' · ' + esc(r.title) : ''}</b>
-        <small>${INTERVALS[r.interval]} · nächste Rechnung ${fmtDate(r.next_date)}${r.auto_send ? ' · automatischer Versand' : ' · nur erstellen'}</small></div>
+        <small>${INTERVALS[r.interval]} · nächste Rechnung ${fmtDate(r.next_date)}${r.auto_send ? ' · automatischer Versand' : ' · nur erstellen'}${r.quote_id && quoteById(r.quote_id) ? ' · aus Angebot ' + esc(quoteById(r.quote_id).number || '') : ''}</small></div>
         <div class="row-side"><b>${eur(totals(r.items).gross)}</b>${r.active ? '<span class="chip ok">aktiv</span>' : '<span class="chip grey">pausiert</span>'}</div></button>`).join('')}</div>`
       : '<div class="empty"><b>Noch keine Abos</b>Zum Beispiel für monatliches Hosting oder Betreuung.</div>'}
     <button class="btn fab" data-fab>+ Abo</button>`;

@@ -148,7 +148,19 @@ function checkCompany(s: Any) {
 const isOn = (v: unknown) => v === true || v === "true";
 
 // Nummernformat: Präfix + optional Jahr + fortlaufende Nummer, z. B. RE0031 oder RE-2026-0031
-async function nextNumber(uid: string, s: Any, isoDate: string) {
+async function nextNumber(uid: string, s: Any, isoDate: string, customerId?: string | null) {
+  // Eigener Nummernkreis je Kunde: Präfix-Kundennummer-laufende Nummer, z. B. RE-10002-0031
+  if (isOn(s.number_per_customer)) {
+    if (!customerId) throw new UserError("Für die Rechnungsnummer wird ein Kunde benötigt.");
+    const cust = await getCustomer(uid, customerId);
+    const kn = String(cust.number ?? "").trim();
+    if (!kn) throw new UserError(`Bitte für ${cust.name} eine Kundennummer eintragen – sie ist Teil der Rechnungsnummer.`);
+    const { data, error } = await db.rpc("next_customer_invoice_number", { p_user: uid, p_customer: customerId });
+    if (error) throw error;
+    const digits = Math.min(Math.max(parseInt(s.number_digits, 10) || 4, 1), 8);
+    const prefix = String(s.prefix ?? "");
+    return `${prefix}${prefix && !/[-_/]$/.test(prefix) ? "-" : ""}${kn}-${String(data).padStart(digits, "0")}`;
+  }
   const year = Number(isoDate.slice(0, 4));
   const withYear = isOn(s.number_year);
   const { data, error } = await db.rpc("next_invoice_number", {
@@ -181,7 +193,7 @@ async function issue(uid: string, id: string, send: boolean) {
 
   const t = totals(items, small);
   const issueDate = today();
-  const number = await nextNumber(uid, s, issueDate);
+  const number = await nextNumber(uid, s, issueDate, inv.customer_id);
   const { data: upd, error } = await db.from("invoices").update({
     number,
     status: "open",
@@ -209,7 +221,7 @@ async function correct(uid: string, id: string, mode: "replace" | "cancel") {
   }
   const s = await getSettings(uid);
   const date = today();
-  const number = await nextNumber(uid, s, date);
+  const number = await nextNumber(uid, s, date, inv.customer_id);
   const stornoItems = (inv.items ?? []).map((it: Any) => ({ ...it, quantity: -(Number(it.quantity) || 0) }));
   const t = totals(stornoItems);
   const { data: storno, error } = await db.from("invoices").insert({

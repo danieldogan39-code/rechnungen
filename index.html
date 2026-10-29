@@ -474,7 +474,7 @@ function viewInvoices() {
   const q = state.query.trim().toLowerCase();
   const list = withStatus.filter(([i, s]) =>
     (state.filter === 'all' || s.key === state.filter || (state.filter === 'open' && s.key === 'overdue')) &&
-    (!q || `${i.number || ''} ${custName(i)} ${i.service_text || ''}`.toLowerCase().includes(q)));
+    (!q || `${i.number || ''} ${custName(i)} ${customerById(i.customer_id)?.number || ''} ${i.service_text || ''}`.toLowerCase().includes(q)));
   const openCount = withStatus.filter(([, st]) => ['open', 'overdue'].includes(st.key)).length;
   return `${pageHead(greeting(), openCount ? `${openCount} offene ${openCount === 1 ? 'Rechnung' : 'Rechnungen'} · ${eur(sum(['open', 'overdue']))} ausstehend` : 'Alles bezahlt – keine offenen Rechnungen.')}
     <div class="stats">
@@ -964,17 +964,44 @@ function nextCustomerNumber() {
   return String(nums.length ? Math.max(...nums) + 1 : 10001);
 }
 
+function customerInvoiceNumber(c, n) {
+  const s = S(); const p = String(s.prefix || ''); const sep = p && !/[-_/]$/.test(p) ? '-' : '';
+  return `${p}${sep}${c.number || 'Kundennr.'}-${String(n).padStart(+s.number_digits || 4, '0')}`;
+}
+// Rechnungsverzeichnis eines Kunden
+function customerDirectory(c) {
+  const list = state.invoices.filter(i => i.customer_id === c.id).sort((a, b) => String(b.issue_date || '9999').localeCompare(String(a.issue_date || '9999')) || String(b.number || '').localeCompare(String(a.number || '')));
+  const real = list.filter(i => i.kind === 'invoice' && ['open', 'paid'].includes(i.status));
+  const paid = real.filter(i => i.status === 'paid').reduce((a, i) => a + +i.gross, 0);
+  const open = real.filter(i => i.status === 'open').reduce((a, i) => a + +i.gross, 0);
+  return `<h3 class="sub" style="margin-top:6px">Rechnungsverzeichnis</h3>
+    <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px">
+      <div class="stat"><span>Rechnungen</span><b>${real.length}</b></div>
+      <div class="stat"><span>Bezahlt</span><b>${eur(paid)}</b></div>
+      <div class="stat ${open ? 'bad' : ''}"><span>Offen</span><b>${eur(open)}</b></div>
+    </div>
+    ${list.length ? `<div class="list" style="margin-bottom:16px">${list.map(i => `<button class="row" data-dir-inv="${i.id}"><div class="row-main"><b>${esc(i.number || 'Entwurf')}</b><small>${i.issue_date ? fmtDate(i.issue_date) : 'noch nicht ausgestellt'}${i.service_text ? ' · ' + esc(i.service_text) : ''}${i.imported ? ' · übernommen' : ''}</small></div><div class="row-side"><b>${eur(invTotal(i))}</b>${chip(i)}</div></button>`).join('')}</div>` : '<p class="mini" style="margin:0 0 16px">Noch keine Rechnungen für diesen Kunden.</p>'}`;
+}
+
 function customerEditor(c, onSaved) {
   const isNew = !c; c = c || { country: 'Deutschland' };
-  const el = openSheet(isNew ? 'Neuer Kunde' : 'Kunde bearbeiten', `
+  const el = openSheet(isNew ? 'Neuer Kunde' : (c.number ? c.number + ' · ' : '') + c.name, `
     <div class="grid3"><label>Kundennr.<input name="number" value="${esc(c.number ?? (isNew ? nextCustomerNumber() : ''))}"></label><label>Firma oder Name<input name="name" value="${esc(c.name)}" required></label></div>
     <label>Ansprechpartner (für die Anrede)<input name="contact" value="${esc(c.contact)}" placeholder="z. B. Frau Schulz"></label>
     <label>E-Mail für Rechnungen<input name="email" type="email" inputmode="email" value="${esc(c.email)}"></label>
     <label>Straße und Hausnummer<input name="street" value="${esc(c.street)}"></label>
     <div class="grid3"><label>PLZ<input name="zip" inputmode="numeric" value="${esc(c.zip)}"></label><label>Ort<input name="city" value="${esc(c.city)}"></label></div>
-    <div class="grid2"><label>Land<input name="country" value="${esc(c.country)}"></label><label>USt-IdNr. (optional)<input name="vat_id" value="${esc(c.vat_id)}"></label></div>`,
+    <div class="grid2"><label>Land<input name="country" value="${esc(c.country)}"></label><label>USt-IdNr. (optional)<input name="vat_id" value="${esc(c.vat_id)}"></label></div>
+    ${isOn(S().number_per_customer) ? `<label>Rechnungen fortsetzen ab Nr.<input name="invoice_start" inputmode="numeric" value="${esc(c.invoice_start ?? 1)}"></label>
+      <p class="mini" style="margin:-8px 0 16px">${+c.invoice_counter ? `Zuletzt vergeben: ${esc(customerInvoiceNumber(c, c.invoice_counter))} · ` : ''}Nächste Rechnung: <b>${esc(customerInvoiceNumber(c, Math.max((+c.invoice_counter || 0) + 1, +c.invoice_start || 1)))}</b></p>` : ''}
+    ${isNew ? '' : customerDirectory(c)}`,
     `${isNew ? '' : '<button class="btn ghost danger" data-x="del">Löschen</button>'}<button class="btn" data-x="save">Speichern</button>`);
-  const read = () => Object.fromEntries(['number', 'name', 'contact', 'email', 'street', 'zip', 'city', 'country', 'vat_id'].map(k => [k, $(`[name=${k}]`, el).value.trim() || null]));
+  const read = () => {
+    const d = Object.fromEntries(['number', 'name', 'contact', 'email', 'street', 'zip', 'city', 'country', 'vat_id'].map(k => [k, $(`[name=${k}]`, el).value.trim() || null]));
+    const st = $('[name=invoice_start]', el); if (st) d.invoice_start = Math.max(1, parseInt(st.value, 10) || 1);
+    return d;
+  };
+  $$('[data-dir-inv]', el).forEach(b => b.onclick = () => { const t = invoiceById(b.dataset.dirInv); closeSheet(el); setTimeout(() => t.status === 'draft' ? invoiceEditor(t) : invoiceDetail(t), 220); });
   bind(el, 'save', async () => {
     const d = read(); if (!d.name) throw new Error('Bitte einen Namen eintragen.');
     let saved;
@@ -1077,9 +1104,13 @@ function viewSettings() {
     <div class="grid2">${f('iban', 'IBAN')}${f('bic', 'BIC')}</div>
   </div>
   <div class="section"><h3>Rechnungsnummern</h3><p class="hint">Vorschau nächste Nummer: <b data-num-preview></b></p>
+    ${cb('number_per_customer', 'Eigener Nummernkreis pro Kunde (Kundennummer in der Rechnungsnummer)')}
     <div class="grid2">${f('prefix', 'Präfix', 'placeholder="RE"')}${f('number_digits', 'Stellen', 'inputmode="numeric"')}</div>
-    ${f('number_start', 'Fortsetzen ab Nummer', 'inputmode="numeric" placeholder="z. B. 31, wenn deine letzte Rechnung RE0030 war"')}
-    ${cb('number_year', 'Jahreszahl in die Nummer (z. B. RE-2026-0001), neu beginnend jedes Jahr')}
+    <div data-global-num>
+      ${f('number_start', 'Fortsetzen ab Nummer', 'inputmode="numeric" placeholder="z. B. 31, wenn deine letzte Rechnung RE0030 war"')}
+      ${cb('number_year', 'Jahreszahl in die Nummer (z. B. RE-2026-0001), neu beginnend jedes Jahr')}
+    </div>
+    <p class="hint" data-cust-num-hint style="margin:0">Jeder Kunde zählt für sich. Wo ein Kunde weiterzählt, stellst du im Kunden unter „Rechnungen fortsetzen ab“ ein.</p>
   </div>
   <div class="section"><h3>Standard-Positionen</h3><p class="hint">Oft genutzte Leistungen – beim Schreiben einfach über „Aus Vorlagen“ auswählen.</p>
     <div data-products></div>
@@ -1137,10 +1168,14 @@ function wireSettings() {
     const o = read(); const y = todayISO().slice(0, 4);
     const nr = String(o.number_start).padStart(o.number_digits, '0');
     const p = String(o.prefix || '');
+    const per = isOn(o.number_per_customer);
+    $('[data-global-num]').hidden = per; $('[data-cust-num-hint]').hidden = !per;
+    if (per) { const sep = p && !/[-_/]$/.test(p) ? '-' : ''; const c0 = state.customers.find(c => c.number) || { number: '10002' }; $('[data-num-preview]').textContent = `${p}${sep}${c0.number}-${String(Math.max((+c0.invoice_counter || 0) + 1, +c0.invoice_start || 1)).padStart(o.number_digits, '0')} (Beispiel ${c0.name || 'Kunde'})`; return; }
     $('[data-num-preview]').textContent = isOn(o.number_year) ? `${p}${p && !/[-_/]$/.test(p) ? '-' : ''}${y}-${String(1).padStart(o.number_digits, '0')} (bzw. ab ${nr}, falls höher)` : `${p}${nr} (oder höher, falls schon weiter)`;
   };
   $$('[data-s="prefix"],[data-s="number_digits"],[data-s="number_start"],[data-s="number_year"]').forEach(i => i.addEventListener('input', preview));
   $('[data-s="number_year"]').addEventListener('change', preview);
+  $('[data-s="number_per_customer"]').addEventListener('change', preview);
   preview();
   const fileIn = $('[data-logo-file]');
   fileIn.onchange = async () => {

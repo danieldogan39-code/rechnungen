@@ -96,6 +96,8 @@ Deno.serve(async (req) => {
         return json(await issueQuote(uid, body.id, !!body.send));
       case "quote_send":
         return json(await sendQuote(uid, body.id));
+      case "import_invoice":
+        return json(await importInvoice(uid, body));
       case "test_mail":
         return json(await testMail(uid, u.user.email ?? ""));
       default:
@@ -402,6 +404,47 @@ async function testMail(uid: string, userEmail: string) {
   return { to };
 }
 
+
+
+// ---------- Bestehende Rechnung (z. B. aus Lexoffice) übernehmen ----------
+
+async function importInvoice(uid: string, b: Any) {
+  const number = String(b.number ?? "").trim();
+  if (!number) throw new UserError("Bitte die Rechnungsnummer angeben.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(b.issue_date ?? ""))) throw new UserError("Bitte ein gültiges Rechnungsdatum angeben.");
+  if (!b.customer_id) throw new UserError("Bitte einen Kunden wählen.");
+  const { data: dup } = await db.from("invoices").select("id").eq("user_id", uid).eq("number", number).maybeSingle();
+  if (dup) throw new UserError(`Die Rechnungsnummer ${number} gibt es schon.`);
+  const cust = await getCustomer(uid, b.customer_id);
+  const items = (Array.isArray(b.items) ? b.items : []).filter((i: Any) => i.description || Number(i.price));
+  if (!items.length) throw new UserError("Bitte mindestens eine Position angeben.");
+  const t = totals(items);
+  const s = await getSettings(uid);
+  const due = /^\d{4}-\d{2}-\d{2}$/.test(String(b.due_date ?? "")) ? b.due_date : addDays(b.issue_date, Number(s.payment_days) || 14);
+  const paid = b.status === "paid";
+  const { data, error } = await db.from("invoices").insert({
+    user_id: uid,
+    number,
+    kind: "invoice",
+    status: paid ? "paid" : "open",
+    customer_id: cust.id,
+    customer: snapshot(cust),
+    issue_date: b.issue_date,
+    due_date: due,
+    service_text: b.service_text ?? "",
+    items,
+    net: t.net,
+    vat: t.vat,
+    gross: t.gross,
+    intro: b.intro ?? s.intro,
+    notes: b.notes ?? null,
+    sent_at: new Date(b.issue_date + "T09:00:00Z").toISOString(),
+    paid_at: paid ? new Date().toISOString() : null,
+    imported: true,
+  }).select().single();
+  if (error) throw error;
+  return { invoice: data };
+}
 
 // ---------- Angebote ----------
 

@@ -616,6 +616,7 @@ function invoiceDetail(inv) {
       ${isInv && inv.reminders_sent ? `<dt>Erinnerungen</dt><dd>${inv.reminders_sent}, zuletzt ${fmtDate(inv.last_reminder_at)}</dd>` : ''}
       ${inv.paid_at ? `<dt>Bezahlt am</dt><dd>${fmtDate(String(inv.paid_at).slice(0, 10))}</dd>` : ''}
       ${inv.recurring_id ? `<dt>Herkunft</dt><dd>Abo</dd>` : ''}
+      ${inv.imported ? `<dt>Herkunft</dt><dd>Übernommen aus dem alten System</dd>` : ''}
     </dl>
     <div class="actions">
       <button class="btn ghost" data-x="pdf">PDF ansehen / teilen</button>

@@ -532,6 +532,7 @@ function enqueue(o) { outbox.push(o); saveQueue(); updateSyncUi(); scheduleFlush
 async function runWrite(w) {
   const o = { kind: 'db', uid: uuid(), at: Date.now(), t: w.t, op: w.op, filters: w.filters,
     vals: w.op === 'insert' && !Array.isArray(w.vals) ? { id: uuid(), ...w.vals } : w.vals };
+  if (outbox.length && online()) await flush().catch(() => {}); // erst Wartendes übertragen, damit die Reihenfolge stimmt
   if (!outbox.length && online()) {
     try { const rows = await execOp(o); const row = applyLocal(o, rows); cacheSave(); return { data: w.one ? (rows?.[0] ?? row) : rows, error: null }; }
     catch (e) { if (!isNetErr(e)) return { data: null, error: e }; state.offline = true; }
@@ -542,6 +543,7 @@ async function runWrite(w) {
 
 // Server-Aktionen (Abschließen, Senden …): ohne Internet merken und später ausführen
 async function callAct(action, payload = {}) {
+  if (outbox.length && online()) await flush().catch(() => {});
   if (!outbox.length && online()) {
     try { return await callFn(action, payload); }
     catch (e) { if (!isNetErr(e)) throw e; state.offline = true; }
@@ -564,7 +566,9 @@ async function flush() {
       try { o.kind === 'fn' ? await callFn(o.action, o.payload) : await execOp(o); }
       catch (e) {
         if (isNetErr(e) || isAuthErr(e)) { state.offline = isNetErr(e); scheduleFlush(30000); break; }
-        failed.push({ ...o, error: e?.message || String(e) });
+        // Anlegen war schon angekommen (Antwort ging unterwegs verloren) → gilt als erledigt
+        const already = o.op === 'insert' && (e?.code === '23505' || /duplicate key/i.test(e?.message || ''));
+        if (!already) failed.push({ ...o, error: e?.message || String(e) });
       }
       outbox.shift(); saveQueue(); done++;
     }

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Rechnungen-App für Android</title>
+<link rel="icon" href="../icon.svg">
+<style>
+@font-face{font-family:Outfit;src:url(../fonts/outfit-latin-wght-normal.woff2) format('woff2');font-weight:100 900;font-display:swap}
+:root{--bg:#0E192A;--card:#14223A;--line:rgba(170,190,220,.14);--ink:#F4F7FB;--text:#D5DEEA;--muted:#93A3BA;--accent:#FF5757}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -10%,#1a2c4a,var(--bg));color:var(--text);font-family:Outfit,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;padding:32px 16px}
+main{max-width:460px;width:100%}
+img.mark{width:84px;height:auto;display:block;margin:0 0 22px}
+h1{color:var(--ink);font-size:30px;letter-spacing:-.02em;margin:0 0 8px;line-height:1.15}
+p{margin:0 0 14px;line-height:1.55;color:var(--muted)}
+a.btn{display:flex;align-items:center;justify-content:center;gap:10px;min-height:56px;border-radius:16px;background:linear-gradient(180deg,#ff6b6b,var(--accent));color:#fff;text-decoration:none;font-weight:600;font-size:17px;margin:22px 0 10px;box-shadow:0 18px 40px -14px rgba(255,87,87,.7)}
+a.ghost{background:none;border:1px solid var(--line);box-shadow:none;color:var(--text);min-height:48px;font-size:15px;margin-top:0}
+ol{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px 18px 18px 38px;margin:22px 0 0;line-height:1.6}
+li{margin:0 0 8px}li:last-child{margin:0}
+b{color:var(--ink);font-weight:600}
+small{display:block;margin-top:18px;color:#6f819b;font-size:12.5px}
+</style>
+</head>
+<body>
+<main>
+  <img class="mark" src="../brand/mono.svg" alt="Medialyte">
+  <h1>Rechnungen-App für Android</h1>
+  <p>Dein Rechnungsportal als echte App: Sie funktioniert auch ohne Internet und überträgt alles automatisch in die Cloud, sobald du wieder online bist.</p>
+  <a class="btn" href="https://github.com/danieldogan39-code/rechnungen/releases/latest/download/medialyte-rechnungen.apk">App herunterladen (APK)</a>
+  <a class="btn ghost" href="../">Lieber im Browser öffnen</a>
+  <ol>
+    <li>Auf <b>„App herunterladen“</b> tippen und den Download bestätigen.</li>
+    <li>Die Datei <b>medialyte-rechnungen.apk</b> öffnen.</li>
+    <li>Beim ersten Mal fragt Android, ob dein Browser Apps installieren darf: <b>„Zulassen“</b> und zurück.</li>
+    <li><b>Installieren</b> tippen und mit deiner E-Mail und deinem Passwort anmelden.</li>
+  </ol>
+  <small>Updates: Die App zeigt dir einen Hinweis, sobald es eine neue Version gibt. Einfach herunterladen und über die alte installieren – deine Daten bleiben erhalten.</small>
+</main>
+</body>
+</html>

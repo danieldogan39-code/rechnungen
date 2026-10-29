@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Rechnungen</string>
+    <string name="title_activity_main">Medialyte Rechnungen</string>
+    <string name="package_name">de.medialyte.rechnungen</string>
+    <string name="custom_url_scheme">de.medialyte.rechnungen</string>
+</resources>

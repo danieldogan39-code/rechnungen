@@ -1,0 +1,14 @@
+{
+  "name": "medialyte-rechnungen",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Medialyte Rechnungsportal als Android-App",
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/cli": "8.5.3",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/filesystem": "8.1.4",
+    "@capacitor-community/file-opener": "8.0.1"
+  }
+}

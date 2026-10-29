@@ -44,7 +44,7 @@ b,strong{color:var(--ink);font-weight:600}
 .tnum,.stat b,.row-side b,.big,.totals{font-variant-numeric:tabular-nums}
 
 /* Kopf */
-.top{position:sticky;top:0;z-index:5;background:rgba(14,25,42,.78);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border-bottom:1px solid var(--line);padding:calc(12px + env(safe-area-inset-top)) 20px 12px}
+.top{position:sticky;top:0;z-index:5;background:rgba(14,25,42,.78);backdrop-filter:saturate(1.4) blur(16px);-webkit-backdrop-filter:saturate(1.4) blur(16px);border-bottom:1px solid var(--line);padding:calc(12px + var(--safe-area-inset-top,env(safe-area-inset-top))) 20px 12px}
 .top-in{max-width:960px;margin:0 auto;display:flex;align-items:center;gap:14px}
 .brand{display:flex;align-items:center;gap:10px;min-width:0}
 .brand .mono{height:30px;width:auto;flex:none}
@@ -58,7 +58,7 @@ b,strong{color:var(--ink);font-weight:600}
 .tabs button svg{width:19px;height:19px}
 .tabs button:hover{color:var(--ink)}
 .tabs button.on{color:var(--bg);background:var(--ink)}
-main{max-width:960px;margin:0 auto;padding:22px 20px calc(110px + env(safe-area-inset-bottom))}
+main{max-width:960px;margin:0 auto;padding:22px 20px calc(110px + var(--safe-area-inset-bottom,env(safe-area-inset-bottom)))}
 .page-h{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:4px 0 18px}
 .page-h h1{font-size:30px;letter-spacing:-.035em;line-height:1.05}
 .page-h p{margin:4px 0 0;color:var(--muted);font-size:14.5px}
@@ -67,7 +67,7 @@ main{max-width:960px;margin:0 auto;padding:22px 20px calc(110px + env(safe-area-
   .brand .wordmark{height:18px}.brand .mono{height:26px}
   main{padding-left:16px;padding-right:16px}
   .page-h h1{font-size:26px}
-  .tabs{position:fixed;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:6;justify-content:space-around;background:rgba(20,34,58,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--line-2);border-radius:22px;padding:6px;box-shadow:0 18px 40px -18px rgba(2,6,14,.9)}
+  .tabs{position:fixed;left:12px;right:12px;bottom:calc(10px + var(--safe-area-inset-bottom,env(safe-area-inset-bottom)));z-index:6;justify-content:space-around;background:rgba(20,34,58,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--line-2);border-radius:22px;padding:6px;box-shadow:0 18px 40px -18px rgba(2,6,14,.9)}
   .tabs button{flex-direction:column;gap:2px;font-size:11px;padding:7px 4px;flex:1;border-radius:16px}
   .tabs button.on{background:var(--soft);color:var(--ink)}
   .tabs button.on svg{color:var(--accent)}
@@ -78,6 +78,7 @@ main{max-width:960px;margin:0 auto;padding:22px 20px calc(110px + env(safe-area-
 
 /* Knöpfe */
 .btn{border:1px solid transparent;border-radius:999px;padding:0 22px;min-height:48px;font-weight:600;font-size:15.5px;background:linear-gradient(180deg,#FB5353,var(--accent-btn-2));color:#fff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:9px;white-space:nowrap;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 12px 28px -16px rgba(255,87,87,.75);transition:transform .15s var(--ease),filter .2s}
+a.btn{text-decoration:none}
 .btn:hover{filter:brightness(1.06)}
 .btn:active{transform:scale(.97)}
 .btn.ghost{background:rgba(255,255,255,.02);border-color:var(--line-3);color:var(--ink);box-shadow:none}
@@ -87,7 +88,7 @@ main{max-width:960px;margin:0 auto;padding:22px 20px calc(110px + env(safe-area-
 .btn:disabled{opacity:.5;cursor:default;transform:none}
 .btn.busy::after{content:"";width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.fab{position:fixed;right:max(20px,calc(50vw - 460px));bottom:calc(98px + env(safe-area-inset-bottom));z-index:4;min-height:54px;padding:0 24px;font-size:16px;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 18px 40px -14px rgba(255,87,87,.7)}
+.fab{position:fixed;right:max(20px,calc(50vw - 460px));bottom:calc(98px + var(--safe-area-inset-bottom,env(safe-area-inset-bottom)));z-index:4;min-height:54px;padding:0 24px;font-size:16px;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 18px 40px -14px rgba(255,87,87,.7)}
 @media (min-width:760px){.fab{bottom:32px}}
 
 /* Übersicht */
@@ -172,6 +173,18 @@ main{max-width:960px;margin:0 auto;padding:22px 20px calc(110px + env(safe-area-
 .chip.blue{background:var(--info-soft);color:var(--info)}
 .empty{text-align:center;color:var(--muted);padding:56px 16px;border:1px dashed var(--line-2);border-radius:var(--r)}
 .empty b{display:block;color:var(--ink);font-size:17px;margin-bottom:4px}
+.sync{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--line-2);background:transparent;color:var(--muted);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;margin-right:6px;white-space:nowrap}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft)}
+.sync.off{color:var(--warn);border-color:rgba(255,183,77,.35)}.sync.off i{background:var(--warn);box-shadow:0 0 0 3px var(--warn-soft)}
+.sync.bad{color:var(--bad);border-color:rgba(255,87,87,.4)}.sync.bad i{background:var(--bad);box-shadow:0 0 0 3px rgba(255,87,87,.18)}
+@media (max-width:759px){.sync{height:30px;padding:0 10px;font-size:12px}.brand .tag{display:none}}
+.chip.pend{background:var(--warn-soft);color:var(--warn);margin-right:6px}
+.qlist{display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
+.qrow{display:flex;align-items:center;gap:12px;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 14px}
+.qrow.bad{border-color:rgba(255,87,87,.4)}
+.qrow .qmain{display:flex;flex-direction:column;gap:2px;min-width:0}.qrow small{color:var(--muted);font-size:12.5px}
+.qbtns{display:flex;gap:6px;flex-shrink:0}.qbtns .btn{min-height:34px;padding:0 12px;font-size:13px}
+a.banner.upd{display:block;background:var(--info-soft,rgba(91,155,255,.14));color:var(--info);text-decoration:none;font-weight:600}
 .banner{background:var(--warn-soft);color:var(--warn);border-radius:var(--r-sm);padding:11px 15px;margin-bottom:14px;font-size:14px}
 .note{background:var(--soft);border:1px solid var(--line);color:var(--text);border-radius:var(--r-sm);padding:12px 15px;font-size:14px;margin-bottom:16px}
 
@@ -220,13 +233,13 @@ h3.sub{font-size:15px;margin:8px 0 12px}
 /* Sheets */
 .sheet-wrap{position:fixed;inset:0;z-index:20;background:rgba(5,10,20,.6);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .22s}
 .sheet-wrap.open{opacity:1}
-.sheet{background:var(--bg);width:100%;max-width:740px;height:calc(100% - 28px - env(safe-area-inset-top));border-radius:24px 24px 0 0;display:flex;flex-direction:column;transform:translateY(28px);transition:transform .3s cubic-bezier(.32,.72,0,1);overflow:hidden;border:1px solid var(--line-2);border-bottom:0;box-shadow:0 -30px 80px -30px rgba(2,6,14,.9)}
+.sheet{background:var(--bg);width:100%;max-width:740px;height:calc(100% - 28px - var(--safe-area-inset-top,env(safe-area-inset-top)));border-radius:24px 24px 0 0;display:flex;flex-direction:column;transform:translateY(28px);transition:transform .3s cubic-bezier(.32,.72,0,1);overflow:hidden;border:1px solid var(--line-2);border-bottom:0;box-shadow:0 -30px 80px -30px rgba(2,6,14,.9)}
 .sheet-wrap.open .sheet{transform:none}
 @media (min-width:760px){.sheet-wrap{align-items:center}.sheet{height:auto;max-height:88vh;border-radius:24px;border-bottom:1px solid var(--line-2)}}
 .sheet-h{display:flex;align-items:center;gap:8px;padding:14px 14px 12px 20px;border-bottom:1px solid var(--line)}
 .sheet-h h2{font-size:19px;flex:1;letter-spacing:-.02em}
 .sheet-b{padding:20px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}
-.sheet-f{display:flex;gap:8px;padding:12px 20px calc(14px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--bg-deep);flex-wrap:wrap}
+.sheet-f{display:flex;gap:8px;padding:12px 20px calc(14px + var(--safe-area-inset-bottom,env(safe-area-inset-bottom)));border-top:1px solid var(--line);background:var(--bg-deep);flex-wrap:wrap}
 .sheet-f .btn{flex:1 1 auto}
 @media (min-width:760px){.sheet-f{justify-content:flex-end}.sheet-f .btn{flex:0 0 auto}.sheet-f .danger{margin-right:auto}}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:14.5px;margin:6px 0 18px;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm)}
@@ -237,7 +250,7 @@ h3.sub{font-size:15px;margin:8px 0 12px}
 .mini{font-size:13.5px;color:var(--muted)}
 .mini li{margin-bottom:5px}
 .linkbtn{border:0;background:none;color:var(--accent);padding:0;cursor:pointer;font-weight:600}
-.toast{pointer-events:none;position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(10px);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:14px;font-size:14.5px;font-weight:500;z-index:50;opacity:0;transition:.25s var(--ease);width:max-content;max-width:calc(100% - 32px);box-shadow:0 18px 40px -16px rgba(2,6,14,.9)}
+.toast{pointer-events:none;position:fixed;left:50%;bottom:calc(100px + var(--safe-area-inset-bottom,env(safe-area-inset-bottom)));transform:translateX(-50%) translateY(10px);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:14px;font-size:14.5px;font-weight:500;z-index:50;opacity:0;transition:.25s var(--ease);width:max-content;max-width:calc(100% - 32px);box-shadow:0 18px 40px -16px rgba(2,6,14,.9)}
 .toast.show{opacity:1;transform:translateX(-50%)}
 .toast.bad{background:var(--accent-btn);color:#fff}
 
@@ -259,7 +272,9 @@ code{background:var(--soft);padding:1px 6px;border-radius:6px;font-size:13px;col
 <body>
 <div id="app"></div>
 <script src="config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<script src="vendor/supabase.js"></script>
+<script src="capacitor.js"></script>
+<script src="app-version.js"></script>
 <script>
 (() => {
 'use strict';
@@ -392,15 +407,194 @@ const bind = (el, key, fn) => { const b = el.querySelector(`[data-x="${key}"]`);
 
 // ---------- Daten ----------
 const CACHE_KEY = 'rechnungen-cache-v2';
+// ---------- Offline: alles lokal speichern, später übertragen ----------
+// Jede Änderung geht sofort an den Server. Ohne Internet landet sie in einer Warteschlange
+// (auf dem Gerät gespeichert) und wird automatisch übertragen, sobald wieder Netz da ist.
+const NATIVE = !!window.Capacitor?.isNativePlatform?.();
+const OUTBOX_KEY = 'rechnungen-outbox-v1', FAILED_KEY = 'rechnungen-failed-v1';
+const TABLE_STATE = { customers: 'customers', invoices: 'invoices', quotes: 'quotes', products: 'products', recurring: 'recurring', mail_log: 'mail' };
+const readLS = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || 'null') ?? d; } catch { return d; } };
+let outbox = readLS(OUTBOX_KEY, []), failed = readLS(FAILED_KEY, []);
+const saveQueue = () => { try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(outbox)); localStorage.setItem(FAILED_KEY, JSON.stringify(failed)); } catch {} };
+const uuid = () => crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+const isNetErr = e => e instanceof TypeError || /RetryableFetch/.test(e?.name || '') || /Failed to fetch|NetworkError|Load failed|network|Keine Verbindung|ERR_INTERNET|timeout/i.test(e?.message || String(e || ''));
+const isAuthErr = e => /JWT|401|not authenticated|invalid claim|refresh token|neu anmelden/i.test(e?.message || String(e || ''));
+const online = () => navigator.onLine !== false;
+const TABLE_LABEL = { invoices: 'Rechnung', quotes: 'Angebot', customers: 'Kunde', products: 'Standard-Position', recurring: 'Abo', settings: 'Einstellungen' };
+const OP_LABEL = { insert: 'angelegt', update: 'geändert', upsert: 'gespeichert', delete: 'gelöscht' };
+const FN_LABEL = { issue: 'Rechnung abschließen', send: 'Rechnung senden', remind: 'Zahlungserinnerung senden', correct: 'Rechnung stornieren', quote_issue: 'Angebot abschließen', quote_send: 'Angebot senden', recurring_backfill: 'Abo-Rechnungen nachtragen', run_recurring: 'Abo-Rechnung erstellen' };
+const opTarget = o => o.kind === 'fn' ? o.payload?.id : (o.vals?.id || o.filters?.find(f => f[0] === 'id')?.[1]);
+function opLabel(o) {
+  let base = o.kind === 'fn' ? FN_LABEL[o.action] || o.action : `${TABLE_LABEL[o.t] || o.t} ${OP_LABEL[o.op] || ''}`;
+  if (o.op === 'insert' && o.vals?.status === 'draft') base = o.t === 'quotes' ? 'Angebotsentwurf angelegt' : 'Rechnungsentwurf angelegt';
+  if (o.op === 'update' && o.vals?.status === 'paid') base = 'Als bezahlt markiert';
+  if (o.kind === 'fn' && o.action === 'issue' && o.payload?.send) base = 'Rechnung abschließen & senden';
+  if (o.kind === 'fn' && o.action === 'quote_issue' && o.payload?.send) base = 'Angebot abschließen & senden';
+  const id = opTarget(o);
+  const row = id && (invoiceById(id) || state.quotes.find(x => x.id === id) || state.recurring.find(x => x.id === id) || customerById(id));
+  const who = row ? (row.name || custName(row)) : '';
+  return who ? `${base} · ${who}` : base;
+}
+const pendingFor = id => !!id && outbox.some(o => opTarget(o) === id);
+
+// Mini-Abfragebaustein mit derselben Schreibweise wie Supabase: db('invoices').update({...}).eq('id', x)
+class Write {
+  constructor(t) { this.t = t; this.op = null; this.vals = null; this.filters = []; this.one = false; }
+  insert(v) { this.op = 'insert'; this.vals = v; return this; }
+  update(v) { this.op = 'update'; this.vals = v; return this; }
+  upsert(v) { this.op = 'upsert'; this.vals = v; return this; }
+  delete() { this.op = 'delete'; return this; }
+  eq(c, v) { this.filters.push([c, v]); return this; }
+  select() { return this; }
+  single() { this.one = true; return this; }
+  then(res, rej) { return runWrite(this).then(res, rej); }
+}
+const db = t => new Write(t);
+
+async function execOp(o) {
+  let q = sb.from(o.t);
+  q = o.op === 'insert' ? q.insert(o.vals) : o.op === 'update' ? q.update(o.vals) : o.op === 'upsert' ? q.upsert(o.vals) : q.delete();
+  for (const [c, v] of o.filters || []) q = q.eq(c, v);
+  if (o.op !== 'delete') q = q.select();
+  const { data, error } = await q;
+  if (error) throw error;
+  return data;
+}
+
+// Änderung auf den lokalen Stand anwenden (sofort sichtbar, auch offline)
+function applyLocal(o, rows) {
+  if (o.t === 'settings') { if (o.vals?.company) state.settings = { ...DEFAULTS, ...o.vals.company }; return o.vals; }
+  const key = TABLE_STATE[o.t]; if (!key) return null;
+  const list = state[key] || (state[key] = []);
+  const match = r => (o.filters || []).every(([c, v]) => r[c] === v);
+  if (o.op === 'insert') {
+    const row = rows?.[0] || { created_at: new Date().toISOString(), ...o.vals };
+    const i = list.findIndex(r => r.id === row.id);
+    if (i >= 0) list[i] = { ...list[i], ...row }; else list.unshift(row);
+    return row;
+  }
+  if (o.op === 'update' || o.op === 'upsert') {
+    let last = null;
+    list.forEach((r, i) => { if (match(r)) { list[i] = { ...r, ...o.vals, ...(rows?.find(x => x.id === r.id) || {}) }; last = list[i]; } });
+    return last;
+  }
+  if (o.op === 'delete') { state[key] = list.filter(r => !match(r)); return null; }
+  return null;
+}
+const reapplyOutbox = () => { for (const o of outbox) if (o.kind === 'db') applyLocal(o); };
+
+function enqueue(o) { outbox.push(o); saveQueue(); updateSyncUi(); scheduleFlush(); }
+
+async function runWrite(w) {
+  const o = { kind: 'db', uid: uuid(), at: Date.now(), t: w.t, op: w.op, filters: w.filters,
+    vals: w.op === 'insert' && !Array.isArray(w.vals) ? { id: uuid(), ...w.vals } : w.vals };
+  if (!outbox.length && online()) {
+    try { const rows = await execOp(o); const row = applyLocal(o, rows); cacheSave(); return { data: w.one ? (rows?.[0] ?? row) : rows, error: null }; }
+    catch (e) { if (!isNetErr(e)) return { data: null, error: e }; state.offline = true; }
+  }
+  const row = applyLocal(o); cacheSave(); enqueue(o);
+  return { data: w.one ? row : [row], error: null };
+}
+
+// Server-Aktionen (Abschließen, Senden …): ohne Internet merken und später ausführen
+async function callAct(action, payload = {}) {
+  if (!outbox.length && online()) {
+    try { return await callFn(action, payload); }
+    catch (e) { if (!isNetErr(e)) throw e; state.offline = true; }
+  }
+  enqueue({ kind: 'fn', uid: uuid(), at: Date.now(), action, payload });
+  return { queued: true };
+}
+const needsNet = what => { if (!online() || state.offline) throw new Error(`${what} braucht eine Internetverbindung. Versuch es noch mal, sobald du wieder online bist.`); };
+const QUEUED_MSG = 'Ohne Internet gespeichert – wird automatisch erledigt, sobald du wieder online bist';
+
+let flushing = null, flushTimer = null;
+function scheduleFlush(ms = 1500) { clearTimeout(flushTimer); if (outbox.length) flushTimer = setTimeout(() => { if (online()) flush().then(n => n && loadAll()); else scheduleFlush(30000); }, ms); }
+async function flush() {
+  if (flushing) return flushing;
+  if (!outbox.length || !online() || !state.session) return 0;
+  flushing = (async () => {
+    let done = 0;
+    while (outbox.length) {
+      const o = outbox[0];
+      try { o.kind === 'fn' ? await callFn(o.action, o.payload) : await execOp(o); }
+      catch (e) {
+        if (isNetErr(e) || isAuthErr(e)) { state.offline = isNetErr(e); scheduleFlush(30000); break; }
+        failed.push({ ...o, error: e?.message || String(e) });
+      }
+      outbox.shift(); saveQueue(); done++;
+    }
+    if (done) {
+      if (!outbox.length) state.offline = false;
+      toast(failed.length ? `Synchronisiert – ${failed.length} ${failed.length === 1 ? 'Änderung hat' : 'Änderungen haben'} ein Problem (oben antippen)` : `${done} ${done === 1 ? 'Änderung' : 'Änderungen'} in die Cloud übertragen`, !!failed.length);
+    }
+    updateSyncUi();
+    return done;
+  })();
+  try { return await flushing; } finally { flushing = null; }
+}
+
+function syncInfo() {
+  if (failed.length) return { cls: 'bad', text: `${failed.length} Problem${failed.length === 1 ? '' : 'e'}` };
+  if (outbox.length) return { cls: 'off', text: `${outbox.length} ausstehend` };
+  if (state.offline) return { cls: 'off', text: 'Offline' };
+  return { cls: '', text: 'Synchron' };
+}
+function updateSyncUi() {
+  const b = $('[data-sync]'); if (!b) return;
+  const i = syncInfo(); b.className = `sync ${i.cls}`; $('span', b).textContent = i.text;
+  const ban = $('[data-offline-banner]'); if (ban) ban.hidden = !(state.offline || outbox.length);
+}
+function syncSheet() {
+  const row = (o, i, bad) => `<div class="qrow ${bad ? 'bad' : ''}"><div class="qmain"><b>${esc(opLabel(o))}</b><small>${fmtDateTime(o.at)}${bad ? ' · ' + esc(o.error) : ''}</small></div>${bad ? `<div class="qbtns"><button class="btn ghost sm" data-retry="${i}">Nochmal</button><button class="btn ghost sm danger" data-drop="${i}">Verwerfen</button></div>` : ''}</div>`;
+  const el = openSheet('Synchronisierung', `
+    <p class="mini" style="margin:0 0 14px">${online() ? 'Du bist online.' : 'Du bist gerade offline.'} Alles, was du ohne Internet machst, wird auf diesem Gerät gespeichert und automatisch in die Cloud übertragen, sobald du wieder online bist.</p>
+    ${failed.length ? `<h3 class="sub">Nicht übertragen</h3><div class="qlist">${failed.map((o, i) => row(o, i, true)).join('')}</div>` : ''}
+    <h3 class="sub">${outbox.length ? `Wartet auf Übertragung (${outbox.length})` : 'Nichts ausstehend'}</h3>
+    ${outbox.length ? `<div class="qlist">${outbox.map((o, i) => row(o, i, false)).join('')}</div>` : '<p class="mini">Alles ist in der Cloud.</p>'}
+    <p class="mini" style="margin-top:16px">Letzter Abgleich: ${state.syncedAt ? fmtDateTime(state.syncedAt) : '–'}${window.APP_VERSION ? ` · App-Version ${esc(window.APP_VERSION)}` : ''}</p>`,
+    `<button class="btn" data-x="now">Jetzt synchronisieren</button>`);
+  bind(el, 'now', async () => { if (!online()) throw new Error('Kein Internet – ich übertrage automatisch, sobald du wieder online bist.'); await flush(); closeSheet(el); await loadAll(); });
+  $$('[data-retry]', el).forEach(b => b.onclick = () => { const [o] = failed.splice(+b.dataset.retry, 1); delete o.error; outbox.push(o); saveQueue(); closeSheet(el); flush().then(() => loadAll()); });
+  $$('[data-drop]', el).forEach(b => b.onclick = () => { if (!confirm('Diese Änderung verwerfen? Sie wird nicht übertragen.')) return; failed.splice(+b.dataset.drop, 1); saveQueue(); closeSheet(el); loadAll(); });
+}
+
+// PDFs zum Offline-Ansehen auf dem Gerät aufheben
+const pdfStore = (() => {
+  let p;
+  const open = () => p ||= new Promise((res, rej) => { const r = indexedDB.open('rechnungen', 1); r.onupgradeneeded = () => r.result.createObjectStore('pdf'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  const tx = async (mode, fn) => { const d = await open(); return new Promise((res, rej) => { const t = d.transaction('pdf', mode); const q = fn(t.objectStore('pdf')); t.oncomplete = () => res(q?.result); t.onerror = () => rej(t.error); }); };
+  return { get: k => tx('readonly', s => s.get(k)).catch(() => null), set: (k, v) => tx('readwrite', s => s.put(v, k)).catch(() => {}) };
+})();
+
+// Neue App-Version (nur Android-App): Hinweis mit Download-Link
+const RELEASES = 'https://api.github.com/repos/danieldogan39-code/rechnungen/releases/latest';
+let latestApp = null;
+const updateBanner = () => latestApp ? `<a class="banner upd" href="${esc(latestApp.url)}">Neue App-Version ${esc(latestApp.v)} ist da – tippen zum Herunterladen und Installieren</a>` : '';
+async function checkAppUpdate() {
+  if (!NATIVE || !window.APP_BUILD || !online()) return;
+  try {
+    const j = await (await fetch(RELEASES, { headers: { Accept: 'application/vnd.github+json' } })).json();
+    const n = +String(j.tag_name || '').split('.').pop();
+    if (n > +window.APP_BUILD) {
+      const a = (j.assets || []).find(x => x.name.endsWith('.apk'));
+      latestApp = { v: String(j.tag_name).replace(/^app-v/, ''), url: a?.browser_download_url || j.html_url };
+      if (!$('.sheet-wrap')) render();
+    }
+  } catch {}
+}
+
 function cacheSave() {
-  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ settings: state.settings, customers: state.customers, invoices: state.invoices, quotes: state.quotes, products: state.products, recurring: state.recurring, mail: state.mail, at: Date.now() })); } catch {}
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ settings: state.settings, customers: state.customers, invoices: state.invoices, quotes: state.quotes, products: state.products, recurring: state.recurring, mail: state.mail, at: Date.now(), syncedAt: state.syncedAt })); } catch {}
 }
 function cacheLoad() {
-  try { const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); if (!c) return false; Object.assign(state, { settings: { ...DEFAULTS, ...c.settings }, customers: c.customers, invoices: c.invoices, quotes: c.quotes || [], products: c.products || [], recurring: c.recurring, mail: c.mail || [] }); return true; } catch { return false; }
+  try { const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); if (!c) return false; Object.assign(state, { settings: { ...DEFAULTS, ...c.settings }, customers: c.customers, invoices: c.invoices, quotes: c.quotes || [], products: c.products || [], recurring: c.recurring, mail: c.mail || [], syncedAt: c.syncedAt }); return true; } catch { return false; }
 }
 
 async function loadAll() {
   try {
+    if (!online()) throw new TypeError('offline');
+    if (outbox.length) await flush();
     const q = await Promise.all([
       sb.from('settings').select('company').maybeSingle(),
       sb.from('customers').select('*').order('name'),
@@ -413,18 +607,20 @@ async function loadAll() {
     const err = q.find(r => r.error); if (err) throw err.error;
     state.settings = { ...DEFAULTS, ...(q[0].data?.company || {}) };
     state.customers = q[1].data; state.invoices = q[2].data; state.recurring = q[3].data; state.quotes = q[4].data; state.products = q[5].data; state.mail = q[6].data;
-    state.offline = false; state.loaded = true; cacheSave();
+    reapplyOutbox();
+    state.offline = false; state.loaded = true; state.syncedAt = Date.now(); cacheSave();
   } catch (e) {
-    console.error(e);
-    if (/JWT|session|auth/i.test(e?.message || '')) { await sb.auth.signOut(); return; }
-    if (cacheLoad()) { state.offline = true; state.loaded = true; } else toast('Daten konnten nicht geladen werden: ' + (e?.message || e), true);
+    if (!isNetErr(e)) console.error(e);
+    if (!isNetErr(e) && /JWT|session|auth/i.test(e?.message || '')) { await sb.auth.signOut(); return; }
+    if (cacheLoad()) { reapplyOutbox(); state.offline = true; state.loaded = true; } else toast(isNetErr(e) ? 'Keine Internetverbindung und noch keine Daten auf diesem Gerät.' : 'Daten konnten nicht geladen werden: ' + (e?.message || e), true);
   }
+  if ($('.sheet-wrap')) { updateSyncUi(); return; } // offenes Formular nicht wegrendern
   render();
 }
 
 async function callFn(action, payload = {}, binary = false) {
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) throw new Error('Bitte neu anmelden.');
+  const { data: { session }, error: authErr } = await sb.auth.getSession();
+  if (!session) { if (!online() || isNetErr(authErr)) throw new TypeError('Keine Verbindung zum Server.'); throw new Error('Bitte neu anmelden.'); }
   let res;
   try {
     res = await fetch(FN_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, apikey: CFG.supabaseKey }, body: JSON.stringify({ action, ...payload }) });
@@ -435,8 +631,17 @@ async function callFn(action, payload = {}, binary = false) {
 
 async function openPdf(inv) {
   const isQ = inv.kind === 'quote';
-  const blob = await callFn(isQ ? 'quote_pdf' : 'pdf', { id: inv.id }, true);
+  const key = `${isQ ? 'q' : 'i'}:${inv.id}`;
+  const final = !!inv.number && inv.status !== 'draft'; // abgeschlossene Belege ändern sich nicht mehr
+  let blob = null;
+  if (online() && !pendingFor(inv.id)) {
+    try { blob = await callFn(isQ ? 'quote_pdf' : 'pdf', { id: inv.id }, true); if (final) pdfStore.set(key, blob); }
+    catch (e) { if (!isNetErr(e)) throw e; }
+  }
+  if (!blob && final) blob = await pdfStore.get(key);
+  if (!blob) throw new Error(pendingFor(inv.id) ? 'Das PDF gibt es, sobald die Änderung übertragen ist – dafür brauchst du Internet.' : 'Für dieses PDF brauchst du einmal Internet. Danach ist es auch offline auf dem Gerät.');
   const name = `${isQ ? 'Angebot' : inv.kind === 'storno' ? 'Stornorechnung' : 'Rechnung'}_${inv.number || 'Entwurf'}.pdf`;
+  if (NATIVE) return openPdfNative(blob, name);
   const file = new File([blob], name, { type: 'application/pdf' });
   const mobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
   if (mobile && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -461,7 +666,17 @@ function invStatus(inv) {
   if (inv.due_date && inv.due_date < todayISO()) return { key: 'overdue', label: inv.reminders_sent ? `Überfällig · ${inv.reminders_sent}× erinnert` : 'Überfällig', cls: 'bad' };
   return { key: 'open', label: 'Offen', cls: 'warn' };
 }
-const chip = inv => { const s = invStatus(inv); return `<span class="chip ${s.cls}">${esc(s.label)}</span>`; };
+const pendChip = id => pendingFor(id) ? '<span class="chip pend" title="Wird übertragen, sobald Internet da ist">⏳ wartet</span>' : '';
+const chip = inv => { const s = invStatus(inv); return `${pendChip(inv.id)}<span class="chip ${s.cls}">${esc(s.label)}</span>`; };
+
+// Android-App: PDF als Datei ablegen und mit dem PDF-Programm des Handys öffnen
+async function openPdfNative(blob, name) {
+  const { Filesystem, FileOpener } = window.Capacitor.Plugins;
+  const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(blob); });
+  const w = await Filesystem.writeFile({ path: `pdf/${name}`, data, directory: 'CACHE', recursive: true });
+  try { await FileOpener.open({ filePath: w.uri, contentType: 'application/pdf', openWithDefault: true }); }
+  catch (e) { throw new Error('Kein PDF-Programm gefunden. Installiere z. B. Google Drive oder Adobe Acrobat.'); }
+}
 
 // ---------- Rendering ----------
 function render() {
@@ -471,17 +686,19 @@ function render() {
   const tabs = [['invoices', 'Rechnungen', ICON.doc], ['quotes', 'Angebote', ICON.quote], ['customers', 'Kunden', ICON.users], ['recurring', 'Abos', ICON.repeat], ['settings', 'Einstellungen', ICON.gear]];
   app.innerHTML = `
     <header class="top"><div class="top-in">
-      <div class="brand">${LOCKUP}<span class="tag"><i class="${state.offline ? 'off' : ''}" title="${state.offline ? 'Offline – gespeicherter Stand' : 'Synchronisiert'}"></i>Portal</span></div>
+      <div class="brand">${LOCKUP}<span class="tag">Portal</span></div>
       <span class="sp"></span>
+      <button class="sync ${syncInfo().cls}" data-sync title="Synchronisierung"><i></i><span>${syncInfo().text}</span></button>
       <nav class="tabs">${tabs.map(([k, l, i]) => `<button data-tab="${k}" class="${state.tab === k ? 'on' : ''}">${i}<span>${l}</span></button>`).join('')}</nav>
       <button class="icon-btn" data-refresh aria-label="Aktualisieren">${ICON.refresh}</button>
     </div></header>
-    <main>${state.offline ? '<div class="banner">Offline: Du siehst den zuletzt gespeicherten Stand. Änderungen sind erst wieder mit Internet möglich.</div>' : ''}${
+    <main><div class="banner" data-offline-banner ${state.offline || outbox.length ? '' : 'hidden'}>Ohne Internet arbeitest du ganz normal weiter: Alles wird auf dem Gerät gespeichert und automatisch übertragen, sobald du wieder online bist.</div>${updateBanner()}${
       !state.loaded ? '<div class="empty">Lade …</div>' :
       state.tab === 'quotes' ? viewQuotes() : state.tab === 'customers' ? viewCustomers() : state.tab === 'recurring' ? viewRecurring() : state.tab === 'settings' ? viewSettings() : viewInvoices()
     }</main>`;
   $$('[data-tab]').forEach(b => b.onclick = () => { state.tab = b.dataset.tab; try { localStorage.setItem('rechnungen-tab', state.tab); } catch {} render(); window.scrollTo(0, 0); });
   $('[data-refresh]').onclick = e => run(e.currentTarget, loadAll);
+  $('[data-sync]').onclick = syncSheet;
   if (state.tab === 'settings' && state.loaded) wireSettings();
   if (state.tab === 'invoices') wireInvoices();
   $$('[data-open-cust]').forEach(b => b.onclick = () => customerEditor(customerById(b.dataset.openCust)));
@@ -675,7 +892,7 @@ function wireItems(root) {
     const dup = state.products.find(x => x.name.toLowerCase() === p.name.toLowerCase());
     run(b, async () => {
       if (dup && !confirm(`Es gibt schon eine Vorlage „${dup.name}“. Mit diesen Werten überschreiben?`)) return;
-      const r = dup ? await sb.from('products').update(p).eq('id', dup.id) : await sb.from('products').insert(p);
+      const r = dup ? await db('products').update(p).eq('id', dup.id) : await db('products').insert(p);
       if (r.error) throw r.error;
       await reloadProducts(); toast(dup ? 'Vorlage aktualisiert' : 'Als Vorlage gespeichert');
     });
@@ -733,8 +950,8 @@ function invoiceEditor(inv, presetCustomer = '') {
   });
   const save = async () => {
     const d = collect();
-    if (id) { const { error } = await sb.from('invoices').update(d).eq('id', id); if (error) throw error; }
-    else { const { data, error } = await sb.from('invoices').insert({ ...d, status: 'draft', kind: 'invoice', ref_invoice_id: inv.ref_invoice_id || null }).select().single(); if (error) throw error; id = data.id; }
+    if (id) { const { error } = await db('invoices').update(d).eq('id', id); if (error) throw error; }
+    else { const { data, error } = await db('invoices').insert({ ...d, status: 'draft', kind: 'invoice', ref_invoice_id: inv.ref_invoice_id || null }).select().single(); if (error) throw error; id = data.id; }
     return d;
   };
   const check = d => {
@@ -753,15 +970,15 @@ function invoiceEditor(inv, presetCustomer = '') {
     const what = `${issue_date < todayISO() ? ` mit Datum ${fmtDate(issue_date)}` : ''}${paid ? `, bezahlt am ${fmtDate(paid_at)}` : ''}`;
     if (!confirm(send ? `Rechnung${what} abschließen und an ${c.email} senden?` : `Rechnung${what} abschließen, ohne sie zu versenden?`)) return;
     await save();
-    const r = await callFn('issue', { id, send, issue_date, paid, paid_at });
+    const r = await callAct('issue', { id, send, issue_date, paid, paid_at });
     closeSheet(el); await loadAll();
-    toast(send ? `Rechnung ${r.invoice.number} an ${c.email} gesendet` : `Rechnung ${r.invoice.number} abgeschlossen`);
+    toast(r.queued ? QUEUED_MSG : send ? `Rechnung ${r.invoice.number} an ${c.email} gesendet` : `Rechnung ${r.invoice.number} abgeschlossen`);
   };
   bind(el, 'save', async () => { await save(); closeSheet(el); await loadAll(); toast('Entwurf gespeichert'); });
   bind(el, 'preview', async () => { await save(); await openPdf({ id, kind: 'invoice' }); loadAll(); });
   bind(el, 'issue', () => doIssue(!late));
   bind(el, 'issueonly', () => doIssue(late));
-  bind(el, 'del', async () => { if (!confirm('Entwurf löschen?')) return; const { error } = await sb.from('invoices').delete().eq('id', id); if (error) throw error; closeSheet(el); await loadAll(); toast('Entwurf gelöscht'); });
+  bind(el, 'del', async () => { if (!confirm('Entwurf löschen?')) return; const { error } = await db('invoices').delete().eq('id', id); if (error) throw error; closeSheet(el); await loadAll(); toast('Entwurf gelöscht'); });
   bind(el, 'newcust', () => customerEditor(null, c => { $('[name=customer_id]', el).innerHTML = custOptions(c.id); }));
 }
 
@@ -775,7 +992,7 @@ function payDateSheet(inv) {
   bind(el, 'ok', async () => {
     const d = $('[name=paid_at]', el).value;
     if (!d || d < min || d > todayISO()) throw new Error('Bitte ein Datum zwischen Rechnungsdatum und heute wählen.');
-    const { error } = await sb.from('invoices').update({ status: 'paid', paid_at: new Date(d + 'T12:00:00Z').toISOString() }).eq('id', inv.id);
+    const { error } = await db('invoices').update({ status: 'paid', paid_at: new Date(d + 'T12:00:00Z').toISOString() }).eq('id', inv.id);
     if (error) throw error; closeSheet(el); await loadAll(); toast(`Bezahlt am ${fmtDate(d)}`);
   });
 }
@@ -788,7 +1005,7 @@ function invoiceDetail(inv) {
   const logs = state.mail.filter(m => m.invoice_id === inv.id);
   const typeLabel = { invoice: 'Rechnung', correction: 'Korrektur', cancel: 'Storno', reminder: 'Zahlungserinnerung' };
   const isInv = inv.kind === 'invoice';
-  const canAct = !state.offline;
+  const canAct = true;
   const rel = [];
   const fromQuote = state.quotes.find(q => q.invoice_id === inv.id);
   if (fromQuote) rel.push(`Aus Angebot <button class="linkbtn" data-goto-quote="${fromQuote.id}">${esc(fromQuote.number || 'Entwurf')}</button>`);
@@ -829,18 +1046,19 @@ function invoiceDetail(inv) {
   const after = async msg => { closeSheet(el); await loadAll(); if (msg) toast(msg); };
   bind(el, 'pdf', () => openPdf(inv));
   bind(el, 'paid', () => { closeSheet(el); setTimeout(() => payDateSheet(inv), 220); });
-  bind(el, 'unpaid', async () => { const { error } = await sb.from('invoices').update({ status: 'open', paid_at: null }).eq('id', inv.id); if (error) throw error; await after('Wieder als offen markiert'); });
-  bind(el, 'remind', async () => { if (!confirm('Zahlungserinnerung jetzt an den Kunden senden?')) return; const r = await callFn('remind', { id: inv.id }); await after(`Erinnerung an ${r.to} gesendet`); });
-  bind(el, 'resend', async () => { if (!confirm('Die Rechnung noch einmal an den Kunden senden?')) return; const r = await callFn('send', { id: inv.id }); await after(`An ${r.to} gesendet`); });
+  bind(el, 'unpaid', async () => { const { error } = await db('invoices').update({ status: 'open', paid_at: null }).eq('id', inv.id); if (error) throw error; await after('Wieder als offen markiert'); });
+  bind(el, 'remind', async () => { if (!confirm('Zahlungserinnerung jetzt an den Kunden senden?')) return; const r = await callAct('remind', { id: inv.id }); await after(r.queued ? QUEUED_MSG : `Erinnerung an ${r.to} gesendet`); });
+  bind(el, 'resend', async () => { if (!confirm('Die Rechnung noch einmal an den Kunden senden?')) return; const r = await callAct('send', { id: inv.id }); await after(r.queued ? QUEUED_MSG : `An ${r.to} gesendet`); });
   bind(el, 'correct', async () => {
     if (!confirm(`Rechnung ${inv.number} korrigieren?\n\nSie wird storniert und als neuer Entwurf kopiert. Den Entwurf passt du an und schickst ihn ab. Der Kunde bekommt dann Storno und neue Rechnung zusammen.`)) return;
+    needsNet('Korrigieren');
     const r = await callFn('correct', { id: inv.id, mode: 'replace' });
     closeSheet(el); await loadAll(); invoiceEditor(invoiceById(r.draft.id));
   });
   bind(el, 'cancel', async () => {
     if (!confirm(`Rechnung ${inv.number} stornieren?\n\nEs wird eine Stornorechnung erstellt und an den Kunden geschickt.`)) return;
-    const r = await callFn('correct', { id: inv.id, mode: 'cancel' });
-    await after(r.mailError ? `Storniert, aber Versand fehlgeschlagen: ${r.mailError}` : 'Storniert und Stornorechnung versendet');
+    const r = await callAct('correct', { id: inv.id, mode: 'cancel' });
+    await after(r.queued ? QUEUED_MSG : r.mailError ? `Storniert, aber Versand fehlgeschlagen: ${r.mailError}` : 'Storniert und Stornorechnung versendet');
   });
 }
 
@@ -1047,13 +1265,13 @@ function productEditor(p, onSaved) {
     const d = { name: $('[name=name]', el).value.trim(), details: $('[name=details]', el).value.trim() || null, unit: $('[name=unit]', el).value.trim() || null,
       price: num($('[name=price]', el).value), discount: num($('[name=discount]', el).value), vat: small() ? 0 : +$('[name=vat]', el).value, billing: $('[name=billing]', el).value };
     if (!d.name) throw new Error('Bitte eine Bezeichnung eintragen.');
-    const r = isNew ? await sb.from('products').insert(d) : await sb.from('products').update(d).eq('id', p.id);
+    const r = isNew ? await db('products').insert(d) : await db('products').update(d).eq('id', p.id);
     if (r.error) throw r.error;
     closeSheet(el); await reloadProducts(); onSaved?.(); toast('Vorlage gespeichert');
   });
   bind(el, 'del', async () => {
     if (!confirm(`Vorlage „${p.name}“ löschen? Bestehende Rechnungen bleiben unverändert.`)) return;
-    const { error } = await sb.from('products').delete().eq('id', p.id); if (error) throw error;
+    const { error } = await db('products').delete().eq('id', p.id); if (error) throw error;
     closeSheet(el); await reloadProducts(); onSaved?.(); toast('Vorlage gelöscht');
   });
   setTimeout(() => isNew && $('[name=name]', el).focus(), 250);
@@ -1069,7 +1287,7 @@ function quoteStatus(q) {
   if (q.valid_until && q.valid_until < todayISO()) return { key: 'expired', label: 'Abgelaufen', cls: 'grey' };
   return { key: 'open', label: 'Offen', cls: 'warn' };
 }
-const qchip = q => { const s = quoteStatus(q); return `<span class="chip ${s.cls}">${esc(s.label)}</span>`; };
+const qchip = q => { const s = quoteStatus(q); return `${pendChip(q.id)}<span class="chip ${s.cls}">${esc(s.label)}</span>`; };
 
 function viewQuotes() {
   const all = state.quotes.map(q => [q, quoteStatus(q)]);
@@ -1150,8 +1368,8 @@ function quoteEditor(q, presetCustomer = '') {
   const withTotals = d => { const t = totals(d.items); return { ...d, net: t.net, vat: t.vat, gross: t.gross }; };
   const save = async () => {
     const d = withTotals(collect());
-    if (id) { const { error } = await sb.from('quotes').update(d).eq('id', id); if (error) throw error; }
-    else { const { data, error } = await sb.from('quotes').insert({ ...d, status: 'draft' }).select().single(); if (error) throw error; id = data.id; }
+    if (id) { const { error } = await db('quotes').update(d).eq('id', id); if (error) throw error; }
+    else { const { data, error } = await db('quotes').insert({ ...d, status: 'draft' }).select().single(); if (error) throw error; id = data.id; }
     return d;
   };
   const doIssue = async send => {
@@ -1162,15 +1380,15 @@ function quoteEditor(q, presetCustomer = '') {
     if (send && !c?.email) throw new Error('Der Kunde hat keine E-Mail-Adresse. Trag sie beim Kunden ein oder wähle „Nur abschließen“.');
     if (!confirm(send ? `Angebot ${sent ? 'erneut ' : ''}an ${c.email} senden?` : 'Angebot abschließen, ohne es zu versenden?')) return;
     await save();
-    const r = await callFn('quote_issue', { id, send, issue_date: $('[name=q_issue_date]', el)?.value || undefined });
+    const r = await callAct('quote_issue', { id, send, issue_date: $('[name=q_issue_date]', el)?.value || todayISO() });
     closeSheet(el); await loadAll();
-    toast(send ? `Angebot ${r.quote.number} an ${c.email} gesendet` : `Angebot ${r.quote.number} abgeschlossen`);
+    toast(r.queued ? QUEUED_MSG : send ? `Angebot ${r.quote.number} an ${c.email} gesendet` : `Angebot ${r.quote.number} abgeschlossen`);
   };
   bind(el, 'save', async () => { await save(); closeSheet(el); await loadAll(); toast('Angebot gespeichert'); });
   bind(el, 'preview', async () => { await save(); await openPdf({ id, kind: 'quote', number: q.number }); loadAll(); });
   bind(el, 'send', () => doIssue(true));
   bind(el, 'issueonly', () => doIssue(false));
-  bind(el, 'del', async () => { if (!confirm('Angebotsentwurf löschen?')) return; const { error } = await sb.from('quotes').delete().eq('id', id); if (error) throw error; closeSheet(el); await loadAll(); toast('Entwurf gelöscht'); });
+  bind(el, 'del', async () => { if (!confirm('Angebotsentwurf löschen?')) return; const { error } = await db('quotes').delete().eq('id', id); if (error) throw error; closeSheet(el); await loadAll(); toast('Entwurf gelöscht'); });
   bind(el, 'newcust', () => customerEditor(null, c => { $('[name=customer_id]', el).innerHTML = custOptions(c.id); }));
 }
 
@@ -1191,7 +1409,7 @@ function quoteAcceptSheet(q, onDone) {
   bind(el, 'go', async () => {
     const res = { invoice: null, abos: 0 };
     if (once) {
-      const { data, error } = await sb.from('invoices').insert({
+      const { data, error } = await db('invoices').insert({
         status: 'draft', kind: 'invoice', customer_id: q.customer_id, items: once.items.map(({ billing, ...it }) => it),
         service_text: q.service_text || '', intro: S().intro, notes: q.notes || '',
       }).select().single();
@@ -1200,14 +1418,14 @@ function quoteAcceptSheet(q, onDone) {
     for (const g of subs) {
       const d = $(`[data-start="${g.billing}"]`, el).value;
       if (!d) throw new Error('Bitte ein Startdatum für das Abo wählen.');
-      const { error } = await sb.from('recurring').insert({
+      const { error } = await db('recurring').insert({
         customer_id: q.customer_id, title: `${String(g.items[0].description || '').split('\n')[0]}${g.items.length > 1 ? ` + ${g.items.length - 1} weitere` : ''}`,
         items: g.items.map(({ billing, ...it }) => it), interval: g.billing, next_date: d,
         auto_send: $(`[data-auto="${g.billing}"]`, el).checked, active: true, quote_id: q.id,
       });
       if (error) throw error; res.abos++;
     }
-    const { error: e2 } = await sb.from('quotes').update({ status: 'accepted', invoice_id: res.invoice?.id || null, decided_at: q.decided_at || new Date().toISOString() }).eq('id', q.id);
+    const { error: e2 } = await db('quotes').update({ status: 'accepted', invoice_id: res.invoice?.id || null, decided_at: q.decided_at || new Date().toISOString() }).eq('id', q.id);
     if (e2) throw e2;
     closeSheet(el); await loadAll();
     onDone?.(res);
@@ -1220,7 +1438,7 @@ function quoteDetail(q) {
   const inv = q.invoice_id && invoiceById(q.invoice_id);
   const abos = state.recurring.filter(r => r.quote_id === q.id);
   const done = inv || abos.length;
-  const canAct = !state.offline;
+  const canAct = true;
   const el = openSheet(`Angebot ${q.number}`, `
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:2px"><span class="big" style="font-size:${splitByBilling(q.items).length > 1 ? 28 : 38}px">${splitText(q.items)}</span>${qchip(q)}</div>
     <div class="mini" style="margin-bottom:14px">${esc(q.customer?.name || customerById(q.customer_id)?.name || '')}${q.customer?.email ? ' · ' + esc(q.customer.email) : ''}</div>
@@ -1247,7 +1465,7 @@ function quoteDetail(q) {
     ${logs.length ? `<ul class="mini">${logs.map(m => `<li>${fmtDateTime(m.sent_at)} · an ${esc(m.recipient)} ${m.status === 'sent' ? '✓' : `<span style="color:var(--bad)">fehlgeschlagen: ${esc(m.error)}</span>`}</li>`).join('')}</ul>` : '<p class="mini">Noch keine E-Mails.</p>'}`);
   $$('[data-goto-inv]', el).forEach(b => b.onclick = () => { const t = invoiceById(b.dataset.gotoInv); closeSheet(el); setTimeout(() => t.status === 'draft' ? invoiceEditor(t) : invoiceDetail(t), 220); });
   const setStatus = async (status, msg) => {
-    const { error } = await sb.from('quotes').update({ status, decided_at: status === 'sent' ? null : new Date().toISOString() }).eq('id', q.id);
+    const { error } = await db('quotes').update({ status, decided_at: status === 'sent' ? null : new Date().toISOString() }).eq('id', q.id);
     if (error) throw error; closeSheet(el); await loadAll(); toast(msg);
   };
   bind(el, 'pdf', () => openPdf({ ...q, kind: 'quote' }));
@@ -1261,7 +1479,7 @@ function quoteDetail(q) {
   bind(el, 'decline', () => setStatus('declined', 'Als abgelehnt markiert'));
   bind(el, 'reopen', () => setStatus('sent', 'Wieder offen'));
   bind(el, 'edit', () => { closeSheet(el); setTimeout(() => quoteEditor(q), 220); });
-  bind(el, 'resend', async () => { if (!confirm('Das Angebot noch einmal an den Kunden senden?')) return; const r = await callFn('quote_send', { id: q.id }); closeSheet(el); await loadAll(); toast(`An ${r.to} gesendet`); });
+  bind(el, 'resend', async () => { if (!confirm('Das Angebot noch einmal an den Kunden senden?')) return; const r = await callAct('quote_send', { id: q.id }); closeSheet(el); await loadAll(); toast(r.queued ? QUEUED_MSG : `An ${r.to} gesendet`); });
 }
 
 // ----- Kunden -----
@@ -1321,13 +1539,13 @@ function customerEditor(c, onSaved) {
   bind(el, 'save', async () => {
     const d = read(); if (!d.name) throw new Error('Bitte einen Namen eintragen.');
     let saved;
-    if (isNew) { const { data, error } = await sb.from('customers').insert(d).select().single(); if (error) throw error; saved = data; }
-    else { const { data, error } = await sb.from('customers').update(d).eq('id', c.id).select().single(); if (error) throw error; saved = data; }
+    if (isNew) { const { data, error } = await db('customers').insert(d).select().single(); if (error) throw error; saved = data; }
+    else { const { data, error } = await db('customers').update(d).eq('id', c.id).select().single(); if (error) throw error; saved = data; }
     closeSheet(el); await loadAll(); onSaved?.(saved); toast('Kunde gespeichert');
   });
   bind(el, 'del', async () => {
     if (!confirm(`${c.name} löschen? Bereits ausgestellte Rechnungen bleiben erhalten.`)) return;
-    const { error } = await sb.from('customers').delete().eq('id', c.id);
+    const { error } = await db('customers').delete().eq('id', c.id);
     if (error) throw new Error(/foreign key|violates/i.test(error.message) ? 'Zu diesem Kunden gibt es noch ein Abo. Lösche zuerst das Abo.' : error.message);
     closeSheet(el); await loadAll(); toast('Kunde gelöscht');
   });
@@ -1388,8 +1606,8 @@ function recurringEditor(r) {
     if (!d.items.length) throw new Error('Bitte mindestens eine Position eintragen.');
     if (!d.next_date) throw new Error('Bitte ein Datum für die nächste Rechnung wählen.');
     if (d.auto_send && !customerById(d.customer_id)?.email) throw new Error('Für automatischen Versand braucht der Kunde eine E-Mail-Adresse.');
-    if (isNew) { const { data, error } = await sb.from('recurring').insert(d).select().single(); if (error) throw error; r.id = data.id; }
-    else { const { error } = await sb.from('recurring').update(d).eq('id', r.id); if (error) throw error; }
+    if (isNew) { const { data, error } = await db('recurring').insert(d).select().single(); if (error) throw error; r.id = data.id; }
+    else { const { error } = await db('recurring').update(d).eq('id', r.id); if (error) throw error; }
   };
   bind(el, 'save', async () => {
     const d = collect();
@@ -1399,7 +1617,7 @@ function recurringEditor(r) {
       let n = 0, x = d.next_date; while (x <= todayISO() && n < 120) { n++; x = addMonthsISO(x, STEP_M[d.interval] || 1); }
       return backfillChoice(n, x, async mode => {
         if (mode === 'skip') { $('[name=next_date]', el).value = x; await save(); }
-        else { await save(); const res = await callFn('recurring_backfill', { id: r.id, mode }); toast(`${res.created.length} Rechnungen nachgetragen (${res.created[0]} … ${res.created[res.created.length - 1]})`); }
+        else { await save(); const res = await callAct('recurring_backfill', { id: r.id, mode }); if (res.queued) toast(QUEUED_MSG); else toast(`${res.created.length} Rechnungen nachgetragen (${res.created[0]} … ${res.created[res.created.length - 1]})`); }
         closeSheet(el); await loadAll();
         if (mode === 'skip') toast(`Abo gespeichert – erste Rechnung am ${fmtDate(x)}`);
       });
@@ -1408,10 +1626,10 @@ function recurringEditor(r) {
   });
   bind(el, 'now', async () => {
     if (!confirm('Jetzt die Rechnung für den nächsten Zeitraum erzeugen' + ($('[name=auto_send]', el).checked ? ' und versenden' : '') + '?')) return;
-    await save(); const res = await callFn('run_recurring', { id: r.id });
-    closeSheet(el); await loadAll(); toast(`Rechnung ${res.invoice.number} erstellt${res.mail ? ' und versendet' : ''}`);
+    await save(); const res = await callAct('run_recurring', { id: r.id });
+    closeSheet(el); await loadAll(); toast(res.queued ? QUEUED_MSG : `Rechnung ${res.invoice.number} erstellt${res.mail ? ' und versendet' : ''}`);
   });
-  bind(el, 'del', async () => { if (!confirm('Abo löschen? Bereits erstellte Rechnungen bleiben erhalten.')) return; const { error } = await sb.from('recurring').delete().eq('id', r.id); if (error) throw error; closeSheet(el); await loadAll(); toast('Abo gelöscht'); });
+  bind(el, 'del', async () => { if (!confirm('Abo löschen? Bereits erstellte Rechnungen bleiben erhalten.')) return; const { error } = await db('recurring').delete().eq('id', r.id); if (error) throw error; closeSheet(el); await loadAll(); toast('Abo gelöscht'); });
   bind(el, 'newcust', () => customerEditor(null, c => { $('[name=customer_id]', el).innerHTML = custOptions(c.id); }));
 }
 
@@ -1481,6 +1699,10 @@ function viewSettings() {
   <div class="section"><h3>E-Mail-Texte</h3><p class="hint">Platzhalter: {anrede} {nummer} {alte_nummer} {kunde} {betrag} {datum} {faellig} {gueltig} {leistung} {firma}</p>
     ${tpl('invoice', 'Neue Rechnung')}${tpl('reminder', 'Zahlungserinnerung')}${tpl('correction', 'Korrigierte Rechnung')}${tpl('cancel', 'Stornierung')}${tpl('quote', 'Angebot')}
     <button class="btn ghost sm" data-reset-tpl>Texte auf Standard zurücksetzen</button>
+  </div>
+  <div class="section"><h3>Android-App</h3>
+    ${NATIVE ? `<p class="hint" style="margin:0">Du nutzt die App, Version ${esc(window.APP_VERSION || '–')}. Neue Versionen kündigt sie dir oben an.</p>`
+      : `<p class="hint">Die Rechnungen als echte App fürs Handy – funktioniert auch ohne Internet und gleicht automatisch ab.</p><a class="btn ghost sm" href="app/" target="_blank" rel="noopener">App herunterladen</a>`}
   </div>
   <div class="bar"><button class="btn" data-save-settings style="flex:1">Einstellungen speichern</button><button class="btn ghost" data-logout>Abmelden</button></div>
   <p class="mini">Angemeldet als ${esc(state.session?.user?.email)}</p>`;
@@ -1561,21 +1783,27 @@ function wireSettings() {
   $('[data-logo-remove]').onclick = () => { logo = ''; $('[data-logo-prev]').innerHTML = '<span class="mini">Kein Logo</span>'; $('[data-logo-remove]').hidden = true; };
   const save = async () => {
     const company = read();
-    const { error } = await sb.from('settings').upsert({ user_id: state.session.user.id, company, updated_at: new Date().toISOString() });
+    const { error } = await db('settings').upsert({ user_id: state.session.user.id, company, updated_at: new Date().toISOString() });
     if (error) throw error;
     state.settings = company; cacheSave();
   };
   const b = $('[data-save-settings]'); b.onclick = () => run(b, async () => { await save(); toast('Einstellungen gespeichert'); });
-  const t = $('[data-test-mail]'); t.onclick = () => run(t, async () => { await save(); const r = await callFn('test_mail'); toast(`Test-Mail an ${r.to} gesendet`); });
+  const t = $('[data-test-mail]'); t.onclick = () => run(t, async () => { await save(); needsNet('Die Test-Mail'); const r = await callFn('test_mail'); toast(`Test-Mail an ${r.to} gesendet`); });
   $('[data-reset-tpl]').onclick = () => { $$('[data-s^="tpl_"]').forEach(i => { i.value = DEFAULTS[i.dataset.s]; }); toast('Zurückgesetzt – zum Übernehmen speichern'); };
-  $('[data-logout]').onclick = async () => { if (!confirm('Abmelden?')) return; try { localStorage.removeItem(CACHE_KEY); } catch {} await sb.auth.signOut(); };
+  $('[data-logout]').onclick = async () => { if (!confirm(outbox.length ? `Achtung: ${outbox.length} Änderungen sind noch nicht in der Cloud. Sie bleiben auf dem Gerät und werden nach der nächsten Anmeldung übertragen.\n\nTrotzdem abmelden?` : 'Abmelden?')) return; try { localStorage.removeItem(CACHE_KEY); } catch {} await sb.auth.signOut(); };
+}
+
+function storedSession() {
+  try { const k = Object.keys(localStorage).find(x => /^sb-.*-auth-token$/.test(x)); const v = k && JSON.parse(localStorage.getItem(k)); return v?.user ? v : null; } catch { return null; }
 }
 
 // ---------- Start ----------
 async function start() {
   if (!configured) return render();
-  const { data } = await sb.auth.getSession();
+  const { data, error } = await sb.auth.getSession();
   state.session = data.session;
+  // Offline mit abgelaufenem Zugangsschlüssel: angemeldet bleiben, Supabase erneuert ihn, sobald Internet da ist
+  if (!state.session && (isNetErr(error) || !online())) state.session = storedSession();
   if (state.session) { if (cacheLoad()) state.loaded = true; render(); loadAll(); } else render();
   sb.auth.onAuthStateChange((event, session) => {
     if (event === 'INITIAL_SESSION') return;
@@ -1583,12 +1811,21 @@ async function start() {
     if (session && !had) { if (cacheLoad()) state.loaded = true; render(); setTimeout(loadAll, 0); }
     else if (!session && had) { state.loaded = false; render(); }
   });
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && state.session && !$('.sheet-wrap')) loadAll(); });
-  window.addEventListener('online', () => state.session && loadAll());
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && state.session) { if ($('.sheet-wrap')) flush(); else loadAll(); } });
+  window.addEventListener('online', () => { state.offline = false; updateSyncUi(); if (!state.session) return; if ($('.sheet-wrap')) flush(); else loadAll(); checkAppUpdate(); });
+  window.addEventListener('offline', () => { state.offline = true; updateSyncUi(); });
+  setInterval(() => { if (outbox.length && online() && state.session) flush().then(n => n && !$('.sheet-wrap') && loadAll()); }, 60000);
+  if (NATIVE) {
+    const { App } = window.Capacitor.Plugins;
+    // Zurück-Taste: offenes Fenster schließen, sonst App in den Hintergrund
+    App?.addListener('backButton', () => { const s = $$('.sheet-wrap'); if (s.length) closeSheet(s[s.length - 1]); else App.minimizeApp(); });
+    document.documentElement.classList.add('native');
+    setTimeout(checkAppUpdate, 4000);
+  }
 }
 start();
 
-if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+if (!NATIVE && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
 </script>
 </body>

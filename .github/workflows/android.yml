@@ -1,0 +1,116 @@
+# Baut die Android-App (APK) aus der Web-App und veröffentlicht sie als Download.
+# Fester Download-Link: https://github.com/danieldogan39-code/rechnungen/releases/latest/download/medialyte-rechnungen.apk
+# Der Signierschlüssel wird beim ersten Lauf erzeugt und privat in der Supabase-Datenbank
+# (Schema "private", nicht über die API erreichbar) abgelegt – nie im Repository.
+name: Android-App bauen
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "index.html"
+      - "config.js"
+      - "manifest.webmanifest"
+      - "vendor/**"
+      - "brand/**"
+      - "fonts/**"
+      - "native/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: bddogrluopqgeqvqzqmy
+      VERSION_CODE: ${{ github.run_number }}
+      VERSION_NAME: 1.0.${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Android-SDK-Lizenzen
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+
+      - name: Web-App einpacken
+        working-directory: native
+        run: |
+          npm ci --no-audit --no-fund
+          rm -rf www && mkdir www
+          cp -r ../index.html ../config.js ../manifest.webmanifest ../icon.svg ../icon-192.png ../icon-512.png ../apple-touch-icon.png ../brand ../fonts ../vendor www/
+          cp node_modules/@capacitor/core/dist/capacitor.js www/capacitor.js
+          printf 'window.APP_BUILD=%s;window.APP_VERSION="%s";\n' "$VERSION_CODE" "$VERSION_NAME" > www/app-version.js
+          npx cap sync android
+
+      - name: Signierschlüssel holen
+        run: |
+          set -euo pipefail
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then echo "::error::Secret SUPABASE_ACCESS_TOKEN fehlt."; exit 1; fi
+          q() {
+            jq -n --arg q "$1" '{query: $q}' > /tmp/q.json
+            curl -sS --fail-with-body -X POST "https://api.supabase.com/v1/projects/$PROJECT_REF/database/query" \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data @/tmp/q.json
+          }
+          q "create schema if not exists private;
+             revoke all on schema private from public, anon, authenticated;
+             create table if not exists private.app_signing (id int primary key, keystore_b64 text not null, password text not null, created_at timestamptz not null default now());
+             revoke all on private.app_signing from public, anon, authenticated;" > /dev/null
+          q "select keystore_b64, password from private.app_signing where id = 1" > /tmp/ks.json
+          if [ "$(jq 'length' /tmp/ks.json)" = "0" ]; then
+            echo "Erster Build: neuer Signierschlüssel wird erzeugt."
+            PASS=$(openssl rand -hex 24)
+            keytool -genkeypair -keystore /tmp/new.jks -storetype PKCS12 -alias medialyte -keyalg RSA -keysize 4096 -validity 36500 \
+              -storepass "$PASS" -keypass "$PASS" -dname "CN=Medialyte, O=Medialyte Marketing und Management, L=Hamburg, C=DE" > /dev/null 2>&1
+            B64=$(base64 -w0 /tmp/new.jks)
+            q "insert into private.app_signing (id, keystore_b64, password) values (1, \$k\$${B64}\$k\$, \$p\$${PASS}\$p\$) on conflict (id) do nothing" > /dev/null
+            q "select keystore_b64, password from private.app_signing where id = 1" > /tmp/ks.json
+            rm -f /tmp/new.jks
+          fi
+          PASS=$(jq -r '.[0].password' /tmp/ks.json)
+          echo "::add-mask::$PASS"
+          jq -r '.[0].keystore_b64' /tmp/ks.json | base64 -d > "$RUNNER_TEMP/release.jks"
+          rm -f /tmp/ks.json /tmp/q.json
+          {
+            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.jks"
+            echo "ANDROID_KEYSTORE_PASSWORD=$PASS"
+            echo "ANDROID_KEY_ALIAS=medialyte"
+          } >> "$GITHUB_ENV"
+
+      - name: APK bauen
+        working-directory: native/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon -PappVersionCode="$VERSION_CODE" -PappVersionName="$VERSION_NAME"
+          cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/medialyte-rechnungen.apk"
+          rm -f "$RUNNER_TEMP/release.jks"
+
+      - name: APK prüfen
+        run: |
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BT/apksigner" verify --print-certs medialyte-rechnungen.apk | grep -E "Signer #1 certificate (DN|SHA-256)"
+          "$BT/aapt" dump badging medialyte-rechnungen.apk | grep -E "^package|^application-label"
+
+      - name: Als Download veröffentlichen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "app-v$VERSION_NAME" medialyte-rechnungen.apk \
+            --title "Rechnungen-App $VERSION_NAME" \
+            --notes "Android-App des Medialyte-Rechnungsportals (Stand: Commit ${GITHUB_SHA::7}). Herunterladen, öffnen, Installation erlauben – fertig. Updates installieren sich einfach über die alte Version." \
+            --latest

@@ -1,0 +1,11 @@
+{
+  "appId": "de.medialyte.rechnungen",
+  "appName": "Medialyte Rechnungen",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#0E192A"
+  },
+  "plugins": {
+    "SystemBars": { "style": "DARK", "insetsHandling": "css" }
+  }
+}

@@ -152,7 +152,11 @@ h3.sub{font-size:15px;margin:8px 0 12px}
 .item-nums.no-vat .vat-col{display:none}
 .item-nums label{margin:0;font-size:11.5px}
 .item-nums input,.item-nums select{min-height:40px;padding:8px 10px;background:var(--bg-deep)}
-.item-foot{display:flex;justify-content:flex-end;font-size:13px;color:var(--muted);margin-top:6px}
+.item-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;color:var(--muted);margin-top:8px}
+.tpl-save{font-size:13px;font-weight:500;color:var(--muted)}.tpl-save:hover{color:var(--accent)}
+.pick{display:flex;width:100%;gap:12px;align-items:center;text-align:left;padding:13px 14px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card);color:inherit;cursor:pointer;margin-bottom:8px}
+.pick:hover{border-color:var(--accent-line)}
+.pick .row-main small{white-space:normal}
 @media (max-width:520px){.item-nums{grid-template-columns:1fr 1fr 1fr}.item-nums .del{grid-column:3;justify-self:end}.item-nums.no-vat{grid-template-columns:repeat(4,1fr)}.item-nums.no-vat .del{grid-column:4}}
 .totals{margin:6px 0 18px;padding:14px 16px;border-radius:var(--r-sm);background:var(--soft);border:1px solid var(--line)}
 .totals div{display:flex;justify-content:space-between;font-size:14px;color:var(--muted)}
@@ -236,7 +240,7 @@ const DEFAULTS = {
 
 const state = {
   session: null, tab: 'invoices', filter: 'all', query: '',
-  settings: { ...DEFAULTS }, customers: [], invoices: [], quotes: [], recurring: [], mail: [], qfilter: 'all',
+  settings: { ...DEFAULTS }, customers: [], invoices: [], quotes: [], products: [], recurring: [], mail: [], qfilter: 'all',
   offline: false, loaded: false,
 };
 try { state.tab = localStorage.getItem('rechnungen-tab') || 'invoices'; } catch {}
@@ -325,10 +329,10 @@ const bind = (el, key, fn) => { const b = el.querySelector(`[data-x="${key}"]`);
 // ---------- Daten ----------
 const CACHE_KEY = 'rechnungen-cache-v2';
 function cacheSave() {
-  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ settings: state.settings, customers: state.customers, invoices: state.invoices, quotes: state.quotes, recurring: state.recurring, mail: state.mail, at: Date.now() })); } catch {}
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ settings: state.settings, customers: state.customers, invoices: state.invoices, quotes: state.quotes, products: state.products, recurring: state.recurring, mail: state.mail, at: Date.now() })); } catch {}
 }
 function cacheLoad() {
-  try { const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); if (!c) return false; Object.assign(state, { settings: { ...DEFAULTS, ...c.settings }, customers: c.customers, invoices: c.invoices, quotes: c.quotes || [], recurring: c.recurring, mail: c.mail || [] }); return true; } catch { return false; }
+  try { const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); if (!c) return false; Object.assign(state, { settings: { ...DEFAULTS, ...c.settings }, customers: c.customers, invoices: c.invoices, quotes: c.quotes || [], products: c.products || [], recurring: c.recurring, mail: c.mail || [] }); return true; } catch { return false; }
 }
 
 async function loadAll() {
@@ -339,11 +343,12 @@ async function loadAll() {
       sb.from('invoices').select('*').order('created_at', { ascending: false }),
       sb.from('recurring').select('*').order('next_date'),
       sb.from('quotes').select('*').order('created_at', { ascending: false }),
+      sb.from('products').select('*').order('name'),
       sb.from('mail_log').select('*').order('sent_at', { ascending: false }).limit(1000),
     ]);
     const err = q.find(r => r.error); if (err) throw err.error;
     state.settings = { ...DEFAULTS, ...(q[0].data?.company || {}) };
-    state.customers = q[1].data; state.invoices = q[2].data; state.recurring = q[3].data; state.quotes = q[4].data; state.mail = q[5].data;
+    state.customers = q[1].data; state.invoices = q[2].data; state.recurring = q[3].data; state.quotes = q[4].data; state.products = q[5].data; state.mail = q[6].data;
     state.offline = false; state.loaded = true; cacheSave();
   } catch (e) {
     console.error(e);
@@ -502,13 +507,13 @@ function itemRow(it = {}) {
       <label class="vat-col">USt<select class="i-vat">${[19, 7, 0].map(v => `<option value="${v}" ${+vat === v ? 'selected' : ''}>${v} %</option>`).join('')}</select></label>
       <button type="button" class="icon-btn del" data-del-item aria-label="Position entfernen">${ICON.close}</button>
     </div>
-    <div class="item-foot"></div>
+    <div class="item-foot"><button type="button" class="linkbtn tpl-save" data-save-tpl>☆ Als Vorlage speichern</button><span class="i-line"></span></div>
   </div>`;
 }
 function itemsEditor(items) {
   return `<datalist id="units">${UNITS.map(u => `<option value="${u}">`).join('')}</datalist>
     <div class="items">${(items?.length ? items : [{}]).map(itemRow).join('')}</div>
-    <button type="button" class="btn ghost sm" data-add-item>+ Position</button>
+    <div class="bar" style="margin-bottom:6px"><button type="button" class="btn sm" data-pick-tpl>+ Aus Vorlagen</button><button type="button" class="btn ghost sm" data-add-item>+ Leere Position</button></div>
     <div class="totals"></div>`;
 }
 function readItems(root) {
@@ -520,7 +525,7 @@ function readItems(root) {
 function wireItems(root) {
   const box = $('.items', root);
   const update = () => {
-    $$('.item', root).forEach(el => { const l = lineNet({ quantity: num($('.i-qty', el).value), price: num($('.i-price', el).value), discount: num($('.i-disc', el).value) }); $('.item-foot', el).textContent = l ? `= ${eur(l)}${small() ? '' : ' netto'}` : ''; });
+    $$('.item', root).forEach(el => { const l = lineNet({ quantity: num($('.i-qty', el).value), price: num($('.i-price', el).value), discount: num($('.i-disc', el).value) }); $('.i-line', el).textContent = l ? `= ${eur(l)}${small() ? '' : ' netto'}` : ''; });
     const t = totals(readItems(root));
     $('.totals', root).innerHTML = small() ? `<div class="g"><span>Gesamt</span><span>${eur(t.gross)}</span></div><div><span>ohne USt (§ 19 UStG)</span><span></span></div>` : `<div><span>Netto</span><span>${eur(t.net)}</span></div>${t.vatLines.map(v => `<div><span>USt ${v.rate} %</span><span>${eur(v.amount)}</span></div>`).join('')}<div class="g"><span>Gesamt</span><span>${eur(t.gross)}</span></div>`;
   };
@@ -529,6 +534,30 @@ function wireItems(root) {
   root.addEventListener('change', e => { if (e.target.closest('.item')) update(); });
   $('[data-add-item]', root).onclick = () => { box.insertAdjacentHTML('beforeend', itemRow({ vat: $$('.i-vat', root).pop()?.value ?? 19 })); $$('.i-desc', root).pop().focus(); update(); };
   box.addEventListener('click', e => { const d = e.target.closest('[data-del-item]'); if (!d) return; d.closest('.item').remove(); if (!$('.item', root)) box.insertAdjacentHTML('beforeend', itemRow()); update(); });
+  $('[data-pick-tpl]', root).onclick = () => productPicker(p => {
+    const it = productToItem(p);
+    const rows = $$('.item', root);
+    const last = rows[rows.length - 1];
+    const emptyRow = last && !$('.i-desc', last).value.trim() && !num($('.i-price', last).value);
+    if (emptyRow) last.outerHTML = itemRow(it); else box.insertAdjacentHTML('beforeend', itemRow(it));
+    requestAnimationFrame(() => $$('.i-desc', root).forEach(grow));
+    update(); toast(`„${p.name}“ hinzugefügt`);
+  });
+  box.addEventListener('click', e => {
+    const b = e.target.closest('[data-save-tpl]'); if (!b) return;
+    const el = b.closest('.item');
+    const raw = $('.i-desc', el).value.trim();
+    if (!raw) { toast('Bitte zuerst eine Bezeichnung eintragen.', true); return; }
+    const [name, ...rest] = raw.split('\n');
+    const p = { name: name.trim(), details: rest.join('\n').trim() || null, unit: $('.i-unit', el).value.trim() || null, price: num($('.i-price', el).value), discount: num($('.i-disc', el).value), vat: small() ? 0 : +$('.i-vat', el).value };
+    const dup = state.products.find(x => x.name.toLowerCase() === p.name.toLowerCase());
+    run(b, async () => {
+      if (dup && !confirm(`Es gibt schon eine Vorlage „${dup.name}“. Mit diesen Werten überschreiben?`)) return;
+      const r = dup ? await sb.from('products').update(p).eq('id', dup.id) : await sb.from('products').insert(p);
+      if (r.error) throw r.error;
+      await reloadProducts(); toast(dup ? 'Vorlage aktualisiert' : 'Als Vorlage gespeichert');
+    });
+  });
   requestAnimationFrame(() => $$('.i-desc', root).forEach(grow));
   update();
 }
@@ -650,6 +679,59 @@ function invoiceDetail(inv) {
     const r = await callFn('correct', { id: inv.id, mode: 'cancel' });
     await after(r.mailError ? `Storniert, aber Versand fehlgeschlagen: ${r.mailError}` : 'Storniert und Stornorechnung versendet');
   });
+}
+
+// ----- Standard-Positionen -----
+const productToItem = p => ({ description: p.details ? `${p.name}\n${p.details}` : p.name, quantity: 1, unit: p.unit || '', price: +p.price, discount: +p.discount || 0, vat: small() ? 0 : +p.vat });
+async function reloadProducts() { const { data, error } = await sb.from('products').select('*').order('name'); if (!error) { state.products = data; cacheSave(); } }
+const productLine = p => `${esc(p.unit || 'Einheit')} · ${eur(p.price)}${+p.discount ? ` · −${fmtNum(p.discount, 3)} %` : ''}${small() ? '' : ` · ${fmtNum(p.vat, 3)} % USt`}`;
+
+function productPicker(onPick) {
+  const el = openSheet('Position aus Vorlagen', `
+    <input class="search" type="search" placeholder="Vorlage suchen …" data-psearch style="margin-bottom:14px!important">
+    <div data-plist></div>
+    <p class="mini">Neue Vorlagen legst du unter Einstellungen → Standard-Positionen an, oder du tippst bei einer Position auf „☆ Als Vorlage speichern“.</p>`);
+  const draw = () => {
+    const q = $('[data-psearch]', el).value.trim().toLowerCase();
+    const list = state.products.filter(p => !q || `${p.name} ${p.details || ''}`.toLowerCase().includes(q));
+    $('[data-plist]', el).innerHTML = list.length ? list.map(p => `<button class="pick" data-pid="${p.id}"><div class="row-main"><b>${esc(p.name)}</b>${p.details ? `<small>${esc(p.details)}</small>` : ''}</div><div class="row-side"><b>${eur(p.price)}</b><small class="mini">${esc(p.unit || '')}</small></div></button>`).join('')
+      : `<div class="empty" style="padding:28px 12px;margin-bottom:12px"><b>${state.products.length ? 'Nichts gefunden' : 'Noch keine Vorlagen'}</b>${state.products.length ? '' : 'Speichere oft genutzte Leistungen als Vorlage.'}</div>`;
+    $$('[data-pid]', el).forEach(b => b.onclick = () => { const p = state.products.find(x => x.id === b.dataset.pid); closeSheet(el); onPick(p); });
+  };
+  $('[data-psearch]', el).oninput = draw;
+  draw();
+  setTimeout(() => { if (state.products.length > 6) $('[data-psearch]', el).focus(); }, 250);
+}
+
+function productEditor(p, onSaved) {
+  const isNew = !p;
+  p = p || { unit: 'pauschal', price: '', discount: 0, vat: 19 };
+  const el = openSheet(isNew ? 'Neue Standard-Position' : 'Standard-Position bearbeiten', `
+    <label>Bezeichnung (fett auf der Rechnung)<input name="name" value="${esc(p.name)}" placeholder="z. B. Website Management (monatlich)"></label>
+    <label>Details (optional, kleiner darunter)<textarea name="details" rows="2" placeholder="z. B. Instandhaltung, Administration, Änderungen">${esc(p.details)}</textarea></label>
+    <div class="grid2">
+      <label>Einheit<input name="unit" list="units2" value="${esc(p.unit)}"><datalist id="units2">${UNITS.map(u => `<option value="${u}">`).join('')}</datalist></label>
+      <label>Preis ${small() ? '' : 'netto '}€<input name="price" inputmode="decimal" value="${esc(p.price !== '' ? fmtNum(p.price) : '')}" placeholder="0,00"></label>
+    </div>
+    <div class="grid2">
+      <label>Rabatt %<input name="discount" inputmode="decimal" value="${esc(+p.discount ? fmtNum(p.discount, 3) : '')}" placeholder="0"></label>
+      <label ${small() ? 'hidden' : ''}>USt<select name="vat">${[19, 7, 0].map(v => `<option value="${v}" ${+p.vat === v ? 'selected' : ''}>${v} %</option>`).join('')}</select></label>
+    </div>`,
+    `${isNew ? '' : '<button class="btn ghost danger" data-x="del">Löschen</button>'}<button class="btn" data-x="save">Speichern</button>`);
+  bind(el, 'save', async () => {
+    const d = { name: $('[name=name]', el).value.trim(), details: $('[name=details]', el).value.trim() || null, unit: $('[name=unit]', el).value.trim() || null,
+      price: num($('[name=price]', el).value), discount: num($('[name=discount]', el).value), vat: small() ? 0 : +$('[name=vat]', el).value };
+    if (!d.name) throw new Error('Bitte eine Bezeichnung eintragen.');
+    const r = isNew ? await sb.from('products').insert(d) : await sb.from('products').update(d).eq('id', p.id);
+    if (r.error) throw r.error;
+    closeSheet(el); await reloadProducts(); onSaved?.(); toast('Vorlage gespeichert');
+  });
+  bind(el, 'del', async () => {
+    if (!confirm(`Vorlage „${p.name}“ löschen? Bestehende Rechnungen bleiben unverändert.`)) return;
+    const { error } = await sb.from('products').delete().eq('id', p.id); if (error) throw error;
+    closeSheet(el); await reloadProducts(); onSaved?.(); toast('Vorlage gelöscht');
+  });
+  setTimeout(() => isNew && $('[name=name]', el).focus(), 250);
 }
 
 // ----- Angebote -----
@@ -948,6 +1030,10 @@ function viewSettings() {
     ${f('number_start', 'Fortsetzen ab Nummer', 'inputmode="numeric" placeholder="z. B. 31, wenn deine letzte Rechnung RE0030 war"')}
     ${cb('number_year', 'Jahreszahl in die Nummer (z. B. RE-2026-0001), neu beginnend jedes Jahr')}
   </div>
+  <div class="section"><h3>Standard-Positionen</h3><p class="hint">Oft genutzte Leistungen – beim Schreiben einfach über „Aus Vorlagen“ auswählen.</p>
+    <div data-products></div>
+    <button class="btn ghost sm" data-add-product>+ Neue Standard-Position</button>
+  </div>
   <div class="section"><h3>Angebote</h3>
     <div class="grid2">${f('quote_prefix', 'Nummern-Präfix', 'placeholder="AN"')}${f('quote_valid_days', 'Gültig für Tage', 'inputmode="numeric"')}</div>
     ${ta('quote_intro', 'Standard-Einleitung', 2)}${ta('quote_closing', 'Schlusssatz', 2)}
@@ -975,7 +1061,15 @@ function viewSettings() {
   <div class="bar"><button class="btn" data-save-settings style="flex:1">Einstellungen speichern</button><button class="btn ghost" data-logout>Abmelden</button></div>
   <p class="mini">Angemeldet als ${esc(state.session?.user?.email)}</p>`;
 }
+function drawProductsSettings() {
+  const box = $('[data-products]'); if (!box) return;
+  box.innerHTML = state.products.length ? state.products.map(p => `<button class="pick" data-edit-product="${p.id}"><div class="row-main"><b>${esc(p.name)}</b><small>${productLine(p)}${p.details ? ' · ' + esc(p.details) : ''}</small></div><div class="row-side"><span class="mini">Bearbeiten</span></div></button>`).join('')
+    : '<p class="mini" style="margin:0 0 12px">Noch keine Standard-Positionen.</p>';
+  $$('[data-edit-product]', box).forEach(b => b.onclick = () => productEditor(state.products.find(x => x.id === b.dataset.editProduct), drawProductsSettings));
+}
 function wireSettings() {
+  drawProductsSettings();
+  $('[data-add-product]').onclick = () => productEditor(null, drawProductsSettings);
   const read = () => {
     const out = { ...S() };
     $$('[data-s]').forEach(i => { const k = i.dataset.s; out[k] = i.type === 'checkbox' ? i.checked : i.value.trim(); });

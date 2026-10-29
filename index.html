@@ -41,7 +41,15 @@ h1,h2,h3{margin:0;color:var(--ink);font-weight:600;letter-spacing:-.02em}
 b,strong{color:var(--ink);font-weight:600}
 ::selection{background:rgba(255,87,87,.32);color:#fff}
 :focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:8px}
-.tnum,.stat b,.row-side b,.big,.discs-h{font-size:13px;font-weight:600;color:var(--muted);margin:14px 0 8px}
+.tnum,.stat b,.row-side b,.big,.seg{display:inline-flex;gap:4px;padding:4px;border-radius:999px;background:var(--card);border:1px solid var(--line);margin:0 0 16px}
+.seg button{border:0;background:none;color:var(--muted);font:inherit;font-size:14px;font-weight:600;padding:8px 16px;border-radius:999px;cursor:pointer}
+.seg button.on{background:var(--ink);color:var(--bg)}
+.wu-card{background:linear-gradient(160deg,var(--soft),var(--card));border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.wu-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:10px}
+.wu-top small{display:block;color:var(--muted);font-size:12.5px;margin-bottom:2px}.wu-top b{font-size:18px;color:var(--ink)}
+.wu-price{text-align:right;font-size:20px;font-weight:700;color:var(--ink);white-space:nowrap}.wu-price small{text-align:right}
+textarea.letter{font-size:14.5px;line-height:1.55}
+.discs-h{font-size:13px;font-weight:600;color:var(--muted);margin:14px 0 8px}
 .disc{display:grid;grid-template-columns:1fr 84px 64px auto auto;gap:8px;align-items:center;margin-bottom:8px}
 .disc .d-bill{min-width:0}
 .disc:not(:has(.d-bill)){grid-template-columns:1fr 84px 64px auto}
@@ -306,6 +314,19 @@ const DEFAULTS = {
   tpl_cancel_subject: 'Stornierung der Rechnung {alte_nummer}',
   tpl_cancel_body: '{anrede},\n\ndie Rechnung {alte_nummer} wurde storniert. Die Stornorechnung {nummer} finden Sie im Anhang. Sie müssen nichts weiter tun. Falls Sie bereits bezahlt haben, erstatten wir Ihnen den Betrag.\n\nViele Grüße\n{firma}',
   tpl_reminder_subject: 'Zahlungserinnerung zur Rechnung {nummer}',
+  // Website-Update-Angebot für Bestandskunden (Vorlage)
+  wu_title: "Zeit für eine neue Website",
+  wu_letter:
+    "{anrede},\n\nseit {kunde_seit} dürfen wir Sie mit Ihrer Website begleiten – vielen Dank für Ihr Vertrauen. In dieser Zeit haben sich die Ansprüche an Websites spürbar verändert: Die meisten Besucher kommen heute über das Smartphone, Google achtet stärker auf Ladezeit und Bedienbarkeit, und Interessenten entscheiden in wenigen Sekunden, ob sie bleiben oder weiterklicken.\n\nDeshalb machen wir unseren langjährigen Kunden ein besonderes Angebot: eine komplett neue Website zum Festpreis – modern gestaltet, technisch auf dem neuesten Stand und ohne Aufwand für Sie.\n\n## Warum sich ein Update jetzt lohnt\n- Zeitgemäßes Design, das Vertrauen schafft und Ihr Unternehmen so zeigt, wie es heute ist\n- Perfekt auf dem Smartphone und mit kurzen Ladezeiten\n- Besser gefunden werden: saubere Technik und Struktur für Google\n- Mehr Anfragen durch klare Wege zu Anruf, E-Mail und Kontaktformular\n- Aktuelle Sicherheitsstandards und Datenschutz nach DSGVO\n\n## So einfach geht es\nWir übernehmen Ihre bestehenden Inhalte, gestalten alles neu und stimmen den Entwurf mit Ihnen ab. Erst wenn Sie zufrieden sind, geht die neue Website online – Ihre Internetadresse und Ihre E-Mail-Postfächer bleiben unverändert.\n\nAlle Leistungen und den Festpreis finden Sie auf der nächsten Seite. Das Angebot gilt bis zum {gueltig}. Wir freuen uns auf Ihre Rückmeldung.\n\nViele Grüße\nDaniel Dogan\n{firma}",
+  wu_intro: "Wie im Anschreiben beschrieben, erneuern wir Ihre Website komplett zum Festpreis:",
+  wu_valid_days: 30,
+  wu_items: [{
+    description: "Komplett neue Website\nNeues Design, Übernahme Ihrer Inhalte, optimiert für Smartphone und Google, Kontaktformular, Impressum und Datenschutz, Einrichtung und Livegang",
+    quantity: 1, unit: "pauschal", price: 0, vat: 19, discount: 0, billing: "once",
+  }],
+  tpl_wu_subject: "Ihre neue Website – Angebot {nummer}",
+  tpl_wu_body:
+    "{anrede},\n\nanbei erhalten Sie unser Angebot für eine komplett neue Website. Auf der ersten Seite haben wir zusammengefasst, warum sich ein Update jetzt lohnt, auf der zweiten finden Sie alle Leistungen und den Festpreis von {betrag}. Das Angebot gilt bis zum {gueltig}.\n\nWenn alles passt, genügt eine kurze Antwort auf diese E-Mail.\n\nViele Grüße\n{firma}",
   quote_prefix: 'AN', quote_valid_days: 30,
   quote_intro: 'Vielen Dank für Ihre Anfrage. Gerne unterbreiten wir Ihnen folgendes Angebot:',
   quote_closing: 'Wir freuen uns auf Ihre Zusage und die Zusammenarbeit.',
@@ -316,10 +337,10 @@ const DEFAULTS = {
 
 const state = {
   session: null, tab: 'invoices', filter: 'all', query: '',
-  settings: { ...DEFAULTS }, customers: [], invoices: [], quotes: [], products: [], recurring: [], mail: [], qfilter: 'all',
+  settings: { ...DEFAULTS }, customers: [], invoices: [], quotes: [], products: [], recurring: [], mail: [], qfilter: 'all', qview: 'standard',
   offline: false, loaded: false,
 };
-try { state.tab = localStorage.getItem('rechnungen-tab') || 'invoices'; } catch {}
+try { state.tab = localStorage.getItem('rechnungen-tab') || 'invoices'; state.qview = localStorage.getItem('rechnungen-qview') || 'standard'; } catch {}
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1357,8 +1378,11 @@ function quoteStatus(q) {
 }
 const qchip = q => { const s = quoteStatus(q); return `${pendChip(q.id)}<span class="chip ${s.cls}">${esc(s.label)}</span>`; };
 
+const isWU = q => q?.category === 'website_update';
+const qSeg = () => `<div class="seg" role="tablist"><button data-qview="standard" class="${state.qview !== 'update' ? 'on' : ''}">Angebote</button><button data-qview="update" class="${state.qview === 'update' ? 'on' : ''}">Website-Update</button></div>`;
 function viewQuotes() {
-  const all = state.quotes.map(q => [q, quoteStatus(q)]);
+  if (state.qview === 'update') return viewUpdates();
+  const all = state.quotes.filter(q => !isWU(q)).map(q => [q, quoteStatus(q)]);
   const sum = keys => all.filter(([, s]) => keys.includes(s.key)).reduce((a, [q]) => a + quoteTotal(q), 0);
   const cnt = keys => all.filter(([, s]) => keys.includes(s.key)).length;
   const decided = cnt(['accepted']) + cnt(['declined']);
@@ -1368,7 +1392,7 @@ function viewQuotes() {
   const list = all.filter(([x, st]) => (state.qfilter === 'all' || st.key === state.qfilter) &&
     (!q || `${x.number || ''} ${x.customer?.name || customerById(x.customer_id)?.name || ''} ${customerById(x.customer_id)?.number || ''} ${x.service_text || ''}`.toLowerCase().includes(q)));
   const open = cnt(['open']);
-  return `${pageHead('Angebote', open ? `${open} ${open === 1 ? 'Angebot wartet' : 'Angebote warten'} auf Antwort · ${eur(sum(['open']))}` : 'Schreib ein Angebot – mit einem Tipp wird daraus später die Rechnung.')}
+  return `${qSeg()}${pageHead('Angebote', open ? `${open} ${open === 1 ? 'Angebot wartet' : 'Angebote warten'} auf Antwort · ${eur(sum(['open']))}` : 'Schreib ein Angebot – mit einem Tipp wird daraus später die Rechnung.')}
     <div class="stats">
       <div class="stat"><span>Offen</span><b>${eur(sum(['open']))}</b></div>
       <div class="stat"><span>Angenommen</span><b>${eur(sum(['accepted']))}</b></div>
@@ -1392,10 +1416,12 @@ function viewQuotes() {
           right: open ? `<span class="chip warn">${open} offen</span>` : drafts ? '<span class="chip blue">Entwurf</span>' : acc ? '<span class="chip ok">angenommen</span>' : '<span class="chip grey">abgeschlossen</span>',
         };
       })
-      : `<div class="empty"><b>${state.quotes.length ? 'Nichts gefunden' : 'Noch keine Angebote'}</b>${state.quotes.length ? 'Ändere den Filter oder die Suche.' : 'Leg mit dem Plus-Knopf dein erstes Angebot an.'}</div>`}
+      : `<div class="empty"><b>${all.length ? 'Nichts gefunden' : 'Noch keine Angebote'}</b>${all.length ? 'Ändere den Filter oder die Suche.' : 'Leg mit dem Plus-Knopf dein erstes Angebot an.'}</div>`}
     <button class="btn fab" data-fab>+ Angebot</button>`;
 }
 function wireQuotes() {
+  $$('[data-qview]').forEach(b => b.onclick = () => { state.qview = b.dataset.qview; try { localStorage.setItem('rechnungen-qview', state.qview); } catch {} render(); window.scrollTo(0, 0); });
+  if (state.qview === 'update') return wireUpdates();
   $$('[data-qfilter]').forEach(b => b.onclick = () => { state.qfilter = b.dataset.qfilter; render(); });
   const s = $('.search');
   if (s) s.oninput = () => { state.query = s.value; const pos = s.selectionStart; render(); const n = $('.search'); n.focus(); n.setSelectionRange(pos, pos); };
@@ -1403,11 +1429,96 @@ function wireQuotes() {
   wireGroups(cid => quoteEditor(null, cid));
 }
 
+// ----- Website-Update-Angebote für Bestandskunden -----
+const WU_PLACEHOLDERS = '{anrede} {kunde} {kunde_seit} {preis} {gueltig} {nummer} {website} {firma}';
+const MONTHS_DE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+function customerSince(cid) {
+  const d = state.invoices.filter(i => i.customer_id === cid && i.kind === 'invoice' && ['open', 'paid'].includes(i.status) && i.issue_date).map(i => i.issue_date).sort()[0];
+  return d || null;
+}
+const sinceText = d => {
+  if (!d) return 'noch keine Rechnungen';
+  const months = (+todayISO().slice(0, 4) - +d.slice(0, 4)) * 12 + (+todayISO().slice(5, 7) - +d.slice(5, 7));
+  const dur = months >= 12 ? `${Math.floor(months / 12)} ${Math.floor(months / 12) === 1 ? 'Jahr' : 'Jahre'}${months % 12 >= 6 ? ' +' : ''}` : `${Math.max(months, 0)} ${months === 1 ? 'Monat' : 'Monate'}`;
+  return `Kunde seit ${MONTHS_DE[+d.slice(5, 7) - 1]} ${d.slice(0, 4)} · ${dur}`;
+};
+const wuItems = () => (Array.isArray(S().wu_items) && S().wu_items.length ? S().wu_items : DEFAULTS.wu_items).map(it => (small() && !isDiscLine(it) ? { ...it, vat: 0 } : it));
+function viewUpdates() {
+  const price = totals(wuItems()).gross;
+  const wuq = state.quotes.filter(isWU);
+  const rows = state.customers.map(c => ({ c, since: customerSince(c.id), q: wuq.filter(q => q.customer_id === c.id).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0] }))
+    .sort((a, b) => (a.since || '9999').localeCompare(b.since || '9999'));
+  const sent = wuq.filter(q => q.status === 'sent').length, acc = wuq.filter(q => q.status === 'accepted').length;
+  return `${qSeg()}${pageHead('Website-Update', 'Eine komplett neue Website zum Festpreis – für Kunden, die schon länger bei dir sind. Zweiseitig: Anschreiben mit Begründung, dann das Angebot.')}
+    <div class="wu-card">
+      <div class="wu-top"><div><small>Deine Vorlage</small><b>${esc(S().wu_title || 'Website-Update')}</b></div><div class="wu-price">${price ? eur(price) : '<span class="chip warn">Preis fehlt</span>'}<small>${price ? 'Festpreis' : ''}</small></div></div>
+      <p class="mini" style="margin:0 0 12px">${esc(String(S().wu_letter || '').replace(/\{anrede\},?\s*/, '').split('\n').find(l => l.trim()) || '').slice(0, 170)}…</p>
+      <div class="bar" style="margin:0"><button class="btn ghost sm" data-wu-edit>Vorlage bearbeiten</button>${wuq.length ? `<span class="mini">${wuq.length} erstellt · ${sent} offen · ${acc} angenommen</span>` : ''}</div>
+    </div>
+    <h3 class="sub" style="margin-top:22px">Kunden</h3>
+    <p class="mini" style="margin:-4px 0 12px">Längste Kundenbeziehung zuerst. Tippe auf einen Kunden, um das Angebot vorzubereiten – du kannst Text und Preis vor dem Versand noch anpassen.</p>
+    <div class="list">${rows.map(({ c, since, q }) => `<button class="row" data-wu-cust="${c.id}">
+        <div class="row-main"><b>${esc(c.name)}</b><small>${esc(sinceText(since))}${q?.number ? ' · ' + esc(q.number) : ''}</small></div>
+        <div class="row-side">${q ? `<b>${splitText(q.items)}</b>${qchip(q)}` : '<span class="chip grey">+ Angebot</span>'}</div></button>`).join('') || '<div class="empty"><b>Noch keine Kunden</b></div>'}</div>`;
+}
+function wireUpdates() {
+  $('[data-wu-edit]').onclick = wuTemplateEditor;
+  $$('[data-wu-cust]').forEach(b => b.onclick = () => run(b, async () => {
+    const c = customerById(b.dataset.wuCust);
+    const q = state.quotes.filter(x => isWU(x) && x.customer_id === c.id).sort((a, b2) => String(b2.created_at).localeCompare(String(a.created_at)))[0];
+    if (q && !(q.status === 'declined' && confirm(`Für ${c.name} gibt es ein abgelehntes Angebot. Ein neues erstellen?`))) return q.status === 'draft' ? quoteEditor(q) : quoteDetail(q);
+    if (!totals(wuItems()).gross && !confirm('In deiner Vorlage steht noch kein Festpreis. Trotzdem ein Angebot anlegen? (Den Preis kannst du im Entwurf eintragen.)')) return;
+    const d = { customer_id: c.id, status: 'draft', category: 'website_update', letter: { title: S().wu_title || '', body: S().wu_letter || '' },
+      intro: S().wu_intro || '', items: wuItems(), service_text: 'Neue Website', notes: '',
+      valid_until: addDaysISO(todayISO(), +S().wu_valid_days || 30) };
+    const t = totals(d.items);
+    const { data, error } = await db('quotes').insert({ ...d, net: t.net, vat: t.vat, gross: t.gross }).select().single();
+    if (error) throw error;
+    render(); quoteEditor(data);
+  }));
+}
+const addDaysISO = (iso, n) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+function wuTemplateEditor() {
+  const el = openSheet('Vorlage: Website-Update', `
+    <p class="mini" style="margin:0 0 14px">Seite 1 ist dein Anschreiben mit Begründung, Seite 2 das Angebot mit Festpreis. Platzhalter werden pro Kunde automatisch ersetzt: ${WU_PLACEHOLDERS}</p>
+    <label>Überschrift (Seite 1)<input name="wu_title" value="${esc(S().wu_title)}"></label>
+    <label>Anschreiben<textarea name="wu_letter" rows="16" class="letter">${esc(S().wu_letter)}</textarea></label>
+    <p class="mini" style="margin:-8px 0 16px">Leerzeile = neuer Absatz · <code>## Text</code> = Zwischenüberschrift · <code>- Text</code> = Aufzählungspunkt</p>
+    <h3 class="sub">Angebot (Seite 2)</h3>
+    <label>Einleitung<textarea name="wu_intro" rows="2">${esc(S().wu_intro)}</textarea></label>
+    ${itemsEditor(S().wu_items?.length ? S().wu_items : DEFAULTS.wu_items, true)}
+    <label>Gültig (Tage)<input name="wu_valid_days" inputmode="numeric" value="${esc(S().wu_valid_days ?? 30)}"></label>
+    <h3 class="sub">E-Mail an den Kunden</h3>
+    <label>Betreff<input name="tpl_wu_subject" value="${esc(S().tpl_wu_subject)}"></label>
+    <label>Text<textarea name="tpl_wu_body" rows="8">${esc(S().tpl_wu_body)}</textarea></label>
+    <p class="mini" style="margin:-8px 0 0">Platzhalter: {anrede} {nummer} {betrag} {gueltig} {firma}</p>`,
+    `<button class="btn ghost" data-x="reset">Standardtext</button><button class="btn" data-x="save">Vorlage speichern</button>`);
+  wireItems(el);
+  bind(el, 'reset', () => { if (!confirm('Anschreiben, Einleitung und E-Mail auf den Standardtext zurücksetzen?')) return; for (const k of ['wu_title', 'wu_letter', 'wu_intro', 'tpl_wu_subject', 'tpl_wu_body']) $(`[name=${k}]`, el).value = DEFAULTS[k]; });
+  bind(el, 'save', async () => {
+    const company = { ...S() };
+    for (const k of ['wu_title', 'wu_letter', 'wu_intro', 'tpl_wu_subject', 'tpl_wu_body']) company[k] = $(`[name=${k}]`, el).value.trim();
+    company.wu_valid_days = Math.max(1, parseInt($('[name=wu_valid_days]', el).value, 10) || 30);
+    company.wu_items = readItems(el);
+    if (!positionsOf(company.wu_items).length) throw new Error('Bitte mindestens eine Position eintragen.');
+    const { error } = await db('settings').upsert({ user_id: state.session.user.id, company, updated_at: new Date().toISOString() });
+    if (error) throw error;
+    state.settings = { ...DEFAULTS, ...company }; cacheSave();
+    closeSheet(el); render(); toast('Vorlage gespeichert');
+  });
+}
+
 function quoteEditor(q, presetCustomer = '') {
   const isNew = !q;
   q = q || { items: [{ quantity: 1, unit: 'pauschal', vat: 19 }], intro: S().quote_intro, service_text: '', notes: '', customer_id: presetCustomer, status: 'draft' };
   const sent = q.status === 'sent';
-  const el = openSheet(isNew ? 'Neues Angebot' : sent ? `Angebot ${q.number} bearbeiten` : 'Angebotsentwurf', `
+  const wu = isWU(q);
+  const el = openSheet(isNew ? 'Neues Angebot' : sent ? `Angebot ${q.number} bearbeiten` : wu ? 'Website-Update-Angebot' : 'Angebotsentwurf', `
+    ${wu ? `<div class="section"><h3>Anschreiben (Seite 1)</h3>
+      <label>Überschrift<input name="l_title" value="${esc(q.letter?.title || '')}"></label>
+      <label>Text<textarea name="l_body" rows="14" class="letter">${esc(q.letter?.body || '')}</textarea></label>
+      <p class="hint" style="margin:0">Platzhalter werden beim Erstellen des PDFs ersetzt: ${WU_PLACEHOLDERS}. Leerzeile = Absatz · <code>## </code> Überschrift · <code>- </code> Aufzählung</p></div>
+      <h3 class="sub">Angebot (Seite 2)</h3>` : ''}
     ${sent ? '<div class="note">Das Angebot wurde schon verschickt. Nach dem Speichern kannst du die neue Fassung direkt erneut senden – die Nummer bleibt gleich.</div>' : ''}
     <label>Kunde<div class="inline"><select name="customer_id">${custOptions(q.customer_id)}</select><button type="button" class="btn ghost sm" data-x="newcust">+ Neu</button></div></label>
     <div class="grid2">
@@ -1432,6 +1543,7 @@ function quoteEditor(q, presetCustomer = '') {
     customer_id: $('[name=customer_id]', el).value || null, service_text: $('[name=service_text]', el).value.trim() || null,
     valid_until: $('[name=valid_until]', el).value || null,
     intro: $('[name=intro]', el).value.trim(), notes: $('[name=notes]', el).value.trim(), items: readItems(el),
+    ...(wu ? { letter: { title: $('[name=l_title]', el).value.trim(), body: $('[name=l_body]', el).value.replace(/\s+$/, '') } } : {}),
   });
   const withTotals = d => { const t = totals(d.items); return { ...d, net: t.net, vat: t.vat, gross: t.gross }; };
   const save = async () => {
@@ -1594,12 +1706,13 @@ function customerEditor(c, onSaved) {
     <label>Straße und Hausnummer<input name="street" value="${esc(c.street)}"></label>
     <div class="grid3"><label>PLZ<input name="zip" inputmode="numeric" value="${esc(c.zip)}"></label><label>Ort<input name="city" value="${esc(c.city)}"></label></div>
     <div class="grid2"><label>Land<input name="country" value="${esc(c.country)}"></label><label>USt-IdNr. (optional)<input name="vat_id" value="${esc(c.vat_id)}"></label></div>
+    <label>Website (optional)<input name="website" inputmode="url" value="${esc(c.website)}" placeholder="z. B. rubin-gold.de"></label>
     ${isOn(S().number_per_customer) ? `<label>Rechnungen fortsetzen ab Nr.<input name="invoice_start" inputmode="numeric" value="${esc(c.invoice_start ?? 1)}"></label>
       <p class="mini" style="margin:-8px 0 16px">${+c.invoice_counter ? `Zuletzt vergeben: ${esc(customerInvoiceNumber(c, c.invoice_counter))} · ` : ''}Nächste Rechnung: <b>${esc(customerInvoiceNumber(c, Math.max((+c.invoice_counter || 0) + 1, +c.invoice_start || 1)))}</b></p>` : ''}
     ${isNew ? '' : customerDirectory(c)}`,
     `${isNew ? '' : '<button class="btn ghost danger" data-x="del">Löschen</button>'}<button class="btn" data-x="save">Speichern</button>`);
   const read = () => {
-    const d = Object.fromEntries(['number', 'name', 'contact', 'email', 'street', 'zip', 'city', 'country', 'vat_id'].map(k => [k, $(`[name=${k}]`, el).value.trim() || null]));
+    const d = Object.fromEntries(['number', 'name', 'contact', 'email', 'street', 'zip', 'city', 'country', 'vat_id', 'website'].map(k => [k, $(`[name=${k}]`, el).value.trim() || null]));
     const st = $('[name=invoice_start]', el); if (st) d.invoice_start = Math.max(1, parseInt(st.value, 10) || 1);
     return d;
   };

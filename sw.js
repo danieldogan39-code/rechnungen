@@ -1,5 +1,5 @@
 // Service Worker: App läuft auch ohne Internet (Ansicht des letzten Stands).
-const CACHE = "rechnungen-v13";
+const CACHE = "rechnungen-v14";
 const SHELL = ["./", "./index.html", "./config.js", "./manifest.webmanifest", "./icon.svg", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png",
   "./brand/mono.svg", "./brand/wordmark.svg", "./brand/logo-rechnung.png", "./fonts/outfit-latin-wght-normal.woff2", "./fonts/outfit-latin-ext-wght-normal.woff2", "./vendor/supabase.js", "./capacitor.js", "./app-version.js"];
 

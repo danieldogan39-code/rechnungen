@@ -138,7 +138,7 @@ async function getCustomer(uid: string, id: string) {
 
 const snapshot = (c: Any) => ({
   name: c.name, number: c.number, contact: c.contact, street: c.street, zip: c.zip, city: c.city,
-  country: c.country, email: c.email, vat_id: c.vat_id,
+  country: c.country, email: c.email, vat_id: c.vat_id, website: c.website,
 });
 
 function checkCompany(s: Any) {
@@ -501,13 +501,50 @@ async function nextQuoteNumber(uid: string, s: Any, isoDate: string) {
   return withYear ? `${prefix}${prefix && !/[-_/]$/.test(prefix) ? "-" : ""}${year}-${nr}` : `${prefix}${nr}`;
 }
 
+const MONTHS_DE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+
+// Platzhalter für Angebote (E-Mail und Anschreiben)
+async function quoteVars(q: Any, s: Any, customer: Any) {
+  const small = isOn(s.small_business);
+  const groups = splitByBilling(q.items ?? []);
+  const betrag = groups.map((g) => {
+    const v = eur(totals(g.items, small).gross);
+    return g.billing === "once" ? (groups.length > 1 ? `${v} einmalig` : v) : v + BILLING_SUFFIX[g.billing];
+  }).join(" zzgl. ");
+  let seit = "";
+  if (q.customer_id) {
+    const { data } = await db.from("invoices").select("issue_date").eq("customer_id", q.customer_id).eq("kind", "invoice")
+      .in("status", ["open", "paid"]).not("issue_date", "is", null).order("issue_date", { ascending: true }).limit(1);
+    const d = data?.[0]?.issue_date;
+    if (d) seit = `${MONTHS_DE[Number(String(d).slice(5, 7)) - 1]} ${String(d).slice(0, 4)}`;
+  }
+  return {
+    nummer: q.number ?? "",
+    kunde: customer?.name ?? "",
+    anrede: customer?.contact ? `Guten Tag ${customer.contact}` : "Sehr geehrte Damen und Herren",
+    betrag,
+    preis: betrag,
+    datum: fmtDate(q.issue_date ?? today()),
+    gueltig: q.valid_until ? fmtDate(q.valid_until) : `${s.wu_valid_days ?? s.quote_valid_days ?? 30} Tage ab Angebotsdatum`,
+    leistung: q.service_text ?? "",
+    firma: s.name ?? "",
+    kunde_seit: seit || "einiger Zeit",
+    website: customer?.website ?? "Ihre Website",
+  } as Record<string, string>;
+}
+
 async function renderQuotePdf(q: Any, s: Any) {
   let customer = q.customer;
   if ((!customer || q.status === "draft") && q.customer_id) {
     const { data } = await db.from("customers").select("*").eq("id", q.customer_id).maybeSingle();
     if (data) customer = snapshot(data);
   }
-  const bytes = await buildInvoicePdf({ inv: { ...q, kind: "quote", customer }, company: s });
+  let letter = null;
+  if (q.letter && (q.letter.title || q.letter.body)) {
+    const vars = await quoteVars(q, s, customer);
+    letter = { title: fill(q.letter.title, vars), body: fill(q.letter.body, vars) };
+  }
+  const bytes = await buildInvoicePdf({ inv: { ...q, kind: "quote", customer, letter }, company: s });
   return { bytes, filename: `Angebot_${q.number ?? "Entwurf"}.pdf` };
 }
 
@@ -550,21 +587,10 @@ async function sendQuote(uid: string, id: string) {
   }
   if (!to) throw new UserError("Für diesen Kunden ist keine E-Mail-Adresse hinterlegt.");
   const pdf = await renderQuotePdf(q, s);
-  const vars: Record<string, string> = {
-    nummer: q.number ?? "",
-    kunde: q.customer?.name ?? "",
-    anrede: q.customer?.contact ? `Guten Tag ${q.customer.contact}` : "Sehr geehrte Damen und Herren",
-    betrag: splitByBilling(q.items).map((g) => {
-      const v = eur(totals(g.items, isOn(s.small_business)).gross);
-      return g.billing === "once" ? (splitByBilling(q.items).length > 1 ? `${v} einmalig` : v) : v + BILLING_SUFFIX[g.billing];
-    }).join(" zzgl. "),
-    datum: fmtDate(q.issue_date),
-    gueltig: fmtDate(q.valid_until),
-    leistung: q.service_text ?? "",
-    firma: s.name ?? "",
-  };
-  const subject = fill(s.tpl_quote_subject, vars);
-  const text = fill(s.tpl_quote_body, vars);
+  const vars = await quoteVars(q, s, q.customer);
+  const wu = q.category === "website_update";
+  const subject = fill(wu ? s.tpl_wu_subject : s.tpl_quote_subject, vars);
+  const text = fill(wu ? s.tpl_wu_body : s.tpl_quote_body, vars);
   let status = "sent";
   let error: string | null = null;
   try {

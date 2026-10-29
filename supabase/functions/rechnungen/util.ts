@@ -46,6 +46,19 @@ export const DEFAULTS: Record<string, unknown> = {
   reminders_enabled: true,
   reminder_interval: 7,
   max_reminders: 3,
+  // Website-Update-Angebot für Bestandskunden (Vorlage)
+  wu_title: "Zeit für eine neue Website",
+  wu_letter:
+    "{anrede},\n\nseit {kunde_seit} dürfen wir Sie mit Ihrer Website begleiten – vielen Dank für Ihr Vertrauen. In dieser Zeit haben sich die Ansprüche an Websites spürbar verändert: Die meisten Besucher kommen heute über das Smartphone, Google achtet stärker auf Ladezeit und Bedienbarkeit, und Interessenten entscheiden in wenigen Sekunden, ob sie bleiben oder weiterklicken.\n\nDeshalb machen wir unseren langjährigen Kunden ein besonderes Angebot: eine komplett neue Website zum Festpreis – modern gestaltet, technisch auf dem neuesten Stand und ohne Aufwand für Sie.\n\n## Warum sich ein Update jetzt lohnt\n- Zeitgemäßes Design, das Vertrauen schafft und Ihr Unternehmen so zeigt, wie es heute ist\n- Perfekt auf dem Smartphone und mit kurzen Ladezeiten\n- Besser gefunden werden: saubere Technik und Struktur für Google\n- Mehr Anfragen durch klare Wege zu Anruf, E-Mail und Kontaktformular\n- Aktuelle Sicherheitsstandards und Datenschutz nach DSGVO\n\n## So einfach geht es\nWir übernehmen Ihre bestehenden Inhalte, gestalten alles neu und stimmen den Entwurf mit Ihnen ab. Erst wenn Sie zufrieden sind, geht die neue Website online – Ihre Internetadresse und Ihre E-Mail-Postfächer bleiben unverändert.\n\nAlle Leistungen und den Festpreis finden Sie auf der nächsten Seite. Das Angebot gilt bis zum {gueltig}. Wir freuen uns auf Ihre Rückmeldung.\n\nViele Grüße\nDaniel Dogan\n{firma}",
+  wu_intro: "Wie im Anschreiben beschrieben, erneuern wir Ihre Website komplett zum Festpreis:",
+  wu_valid_days: 30,
+  wu_items: [{
+    description: "Komplett neue Website\nNeues Design, Übernahme Ihrer Inhalte, optimiert für Smartphone und Google, Kontaktformular, Impressum und Datenschutz, Einrichtung und Livegang",
+    quantity: 1, unit: "pauschal", price: 0, vat: 19, discount: 0, billing: "once",
+  }],
+  tpl_wu_subject: "Ihre neue Website – Angebot {nummer}",
+  tpl_wu_body:
+    "{anrede},\n\nanbei erhalten Sie unser Angebot für eine komplett neue Website. Auf der ersten Seite haben wir zusammengefasst, warum sich ein Update jetzt lohnt, auf der zweiten finden Sie alle Leistungen und den Festpreis von {betrag}. Das Angebot gilt bis zum {gueltig}.\n\nWenn alles passt, genügt eine kurze Antwort auf diese E-Mail.\n\nViele Grüße\n{firma}",
   quote_prefix: "AN",
   quote_valid_days: 30,
   quote_intro: "Vielen Dank für Ihre Anfrage. Gerne unterbreiten wir Ihnen folgendes Angebot:",

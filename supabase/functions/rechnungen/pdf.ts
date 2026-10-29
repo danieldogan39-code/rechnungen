@@ -195,11 +195,11 @@ export async function buildInvoicePdf({ inv, company: c, ref, fonts }: PdfInput)
   const pages: PDFPage[] = [];
   let page!: PDFPage;
   let y = 0;
-  const newPage = () => {
+  const newPage = (fresh = false) => {
     page = doc.addPage([W, H]);
     pages.push(page);
     y = H - 22 * MM;
-    if (pages.length > 1) {
+    if (pages.length > 1 && !fresh) {
       T(page, clean(c.name), ML, y, { size: 9, font: fm, color: ink });
       T(page, `${fullTitle} · Fortsetzung`, RIGHT, y, { size: 9, color: muted, align: "right" });
       y -= 12 * MM;
@@ -210,95 +210,147 @@ export async function buildInvoicePdf({ inv, company: c, ref, fonts }: PdfInput)
   // ---------- Falz- und Lochmarken (DIN 5008) ----------
   // (werden am Ende auf alle Seiten gezeichnet)
 
-  // ---------- Kopf: Logo / Name + Absenderblock ----------
-  const headTop = H - 14 * MM;
-  let logoDrawn = false;
+  // Logo einmal einbetten (wird auf Anschreiben und Angebot genutzt)
+  let logoImg: Awaited<ReturnType<typeof doc.embedPng>> | null = null;
   if (typeof c.logo === "string" && c.logo.startsWith("data:image/")) {
     try {
-      const img = c.logo.startsWith("data:image/png") ? await doc.embedPng(c.logo) : await doc.embedJpg(c.logo);
-      const maxW = 72 * MM, maxH = 26 * MM;
-      const sc = Math.min(maxW / img.width, maxH / img.height);
-      page.drawImage(img, { x: ML, y: headTop - img.height * sc, width: img.width * sc, height: img.height * sc });
-      logoDrawn = true;
+      logoImg = c.logo.startsWith("data:image/png") ? await doc.embedPng(c.logo) : await doc.embedJpg(c.logo);
     } catch (e) {
       console.error("Logo konnte nicht eingebettet werden", e);
     }
   }
-  if (!logoDrawn) {
-    T(page, c.name || "Firmenname", ML, headTop - 16, { size: 18, font: fb2, color: ink });
-    if (c.tagline) T(page, c.tagline, ML, headTop - 30, { size: 8.5, color: muted });
-  }
-  const headRight: [string, boolean][] = [
-    [c.name, true],
-    [c.street, false],
-    [[c.zip, c.city].filter(Boolean).join(" "), false],
-    [c.phone ? `Tel. ${c.phone}` : "", false],
-    [c.email, false],
-    [c.website, false],
-  ];
-  let hy = headTop - 7;
-  for (const [l, b] of headRight) {
-    if (!l) continue;
-    T(page, l, RIGHT, hy, { size: 8.5, font: b ? fm : f, color: b ? ink : muted, align: "right" });
-    hy -= 11.5;
-  }
 
-  // ---------- Anschriftfeld ----------
-  const sy = H - 50 * MM;
-  const sender = [c.name, c.street, [c.zip, c.city].filter(Boolean).join(" ")].filter(Boolean).join(" · ");
-  const senderLine = wrap(sender, f, 7, 85 * MM)[0] ?? "";
-  T(page, senderLine, ML, sy, { size: 7, color: muted });
-  page.drawLine({ start: { x: ML, y: sy - 2.6 }, end: { x: ML + f.widthOfTextAtSize(senderLine, 7), y: sy - 2.6 }, thickness: 0.4, color: hair });
-  let ry = sy - 17;
-  const showCountry = cu.country && !/^(deutschland|germany|de)$/i.test(String(cu.country).trim());
-  const rec: [unknown, boolean][] = [
-    [cu.name || "Kunde fehlt", true],
-    [cu.contact, false],
-    [cu.street, false],
-    [[cu.zip, cu.city].filter(Boolean).join(" "), false],
-    [showCountry ? cu.country : "", false],
-  ];
-  for (const [l, bold] of rec) {
-    if (!l) continue;
-    for (const ln of wrap(l, bold ? fm : f, 10.5, 85 * MM)) {
-      T(page, ln, ML, ry, { size: 10.5, font: bold ? fm : f, color: ink });
-      ry -= 14;
+  // Briefkopf: Logo, Absender, Anschriftfeld, Infobox
+  const drawHead = () => {
+    // ---------- Kopf: Logo / Name + Absenderblock ----------
+    const headTop = H - 14 * MM;
+    let logoDrawn = false;
+    if (logoImg) {
+      const maxW = 72 * MM, maxH = 26 * MM;
+      const sc = Math.min(maxW / logoImg.width, maxH / logoImg.height);
+      page.drawImage(logoImg, { x: ML, y: headTop - logoImg.height * sc, width: logoImg.width * sc, height: logoImg.height * sc });
+      logoDrawn = true;
     }
-  }
+    if (!logoDrawn) {
+      T(page, c.name || "Firmenname", ML, headTop - 16, { size: 18, font: fb2, color: ink });
+      if (c.tagline) T(page, c.tagline, ML, headTop - 30, { size: 8.5, color: muted });
+    }
+    const headRight: [string, boolean][] = [
+      [c.name, true],
+      [c.street, false],
+      [[c.zip, c.city].filter(Boolean).join(" "), false],
+      [c.phone ? `Tel. ${c.phone}` : "", false],
+      [c.email, false],
+      [c.website, false],
+    ];
+    let hy = headTop - 7;
+    for (const [l, b] of headRight) {
+      if (!l) continue;
+      T(page, l, RIGHT, hy, { size: 8.5, font: b ? fm : f, color: b ? ink : muted, align: "right" });
+      hy -= 11.5;
+    }
 
-  // ---------- Infobox ----------
-  const info: [string, string][] = [
-    [isQuote ? "Angebotsnr." : isStorno ? "Storno-Nr." : "Rechnungsnr.", inv.number ?? "Entwurf"],
-  ];
-  if (cu.number) info.push(["Kundennr.", String(cu.number)]);
-  info.push([isQuote ? "Angebotsdatum" : isStorno ? "Datum" : "Rechnungsdatum", !inv.number ? "beim Abschließen" : fmtDate(inv.issue_date)]);
-  if (inv.service_text) info.push(["Leistung", String(inv.service_text)]);
-  if (isQuote) {
-    info.push(["Gültig bis", inv.valid_until ? fmtDate(inv.valid_until) : `${c.quote_valid_days ?? 30} Tage ab Datum`]);
-  } else {
-    if (!isStorno && !isDraft && inv.due_date) info.push(["Fällig am", fmtDate(inv.due_date)]);
-    if (isDraft) info.push(["Zahlungsziel", `${c.payment_days ?? 14} Tage`]);
-  }
-  if (cu.vat_id) info.push(["USt-IdNr. Kunde", String(cu.vat_id)]);
-  if (ref?.number) info.push([isStorno ? "Storniert" : "Ersetzt", String(ref.number)]);
+    // ---------- Anschriftfeld ----------
+    const sy = H - 50 * MM;
+    const sender = [c.name, c.street, [c.zip, c.city].filter(Boolean).join(" ")].filter(Boolean).join(" · ");
+    const senderLine = wrap(sender, f, 7, 85 * MM)[0] ?? "";
+    T(page, senderLine, ML, sy, { size: 7, color: muted });
+    page.drawLine({ start: { x: ML, y: sy - 2.6 }, end: { x: ML + f.widthOfTextAtSize(senderLine, 7), y: sy - 2.6 }, thickness: 0.4, color: hair });
+    let ry = sy - 17;
+    const showCountry = cu.country && !/^(deutschland|germany|de)$/i.test(String(cu.country).trim());
+    const rec: [unknown, boolean][] = [
+      [cu.name || "Kunde fehlt", true],
+      [cu.contact, false],
+      [cu.street, false],
+      [[cu.zip, cu.city].filter(Boolean).join(" "), false],
+      [showCountry ? cu.country : "", false],
+    ];
+    for (const [l, bold] of rec) {
+      if (!l) continue;
+      for (const ln of wrap(l, bold ? fm : f, 10.5, 85 * MM)) {
+        T(page, ln, ML, ry, { size: 10.5, font: bold ? fm : f, color: ink });
+        ry -= 14;
+      }
+    }
 
-  const boxW = 74 * MM;
-  const boxX = RIGHT - boxW;
-  const pad = 4 * MM;
-  const valMax = boxW - pad * 2 - 27 * MM;
-  const infoLines = info.map(([k, v]) => [k, wrap(v, fm, 9, valMax)] as [string, string[]]);
-  const boxH = pad * 2 + infoLines.reduce((s, [, v]) => s + v.length * 12.5, 0) - 3;
-  const boxTop = sy + 4;
-  roundRect(page, boxX, boxTop - boxH, boxW, boxH, 7, { color: panel });
-  page.drawRectangle({ x: boxX, y: boxTop - boxH + 7, width: 2.2, height: boxH - 14, color: accent });
-  let iy = boxTop - pad - 6;
-  for (const [k, vals] of infoLines) {
-    T(page, k, boxX + pad + 2, iy, { size: 8.5, color: muted });
-    vals.forEach((v, i) => T(page, v, RIGHT - pad, iy - i * 12.5, { size: 9, font: fm, color: ink, align: "right" }));
-    iy -= vals.length * 12.5;
-  }
+    // ---------- Infobox ----------
+    const info: [string, string][] = [
+      [isQuote ? "Angebotsnr." : isStorno ? "Storno-Nr." : "Rechnungsnr.", inv.number ?? "Entwurf"],
+    ];
+    if (cu.number) info.push(["Kundennr.", String(cu.number)]);
+    info.push([isQuote ? "Angebotsdatum" : isStorno ? "Datum" : "Rechnungsdatum", !inv.number ? "beim Abschließen" : fmtDate(inv.issue_date)]);
+    if (inv.service_text) info.push(["Leistung", String(inv.service_text)]);
+    if (isQuote) {
+      info.push(["Gültig bis", inv.valid_until ? fmtDate(inv.valid_until) : `${c.quote_valid_days ?? 30} Tage ab Datum`]);
+    } else {
+      if (!isStorno && !isDraft && inv.due_date) info.push(["Fällig am", fmtDate(inv.due_date)]);
+      if (isDraft) info.push(["Zahlungsziel", `${c.payment_days ?? 14} Tage`]);
+    }
+    if (cu.vat_id) info.push(["USt-IdNr. Kunde", String(cu.vat_id)]);
+    if (ref?.number) info.push([isStorno ? "Storniert" : "Ersetzt", String(ref.number)]);
 
-  y = Math.min(ry, boxTop - boxH, H - 88 * MM) - 12 * MM;
+    const boxW = 74 * MM;
+    const boxX = RIGHT - boxW;
+    const pad = 4 * MM;
+    const valMax = boxW - pad * 2 - 27 * MM;
+    const infoLines = info.map(([k, v]) => [k, wrap(v, fm, 9, valMax)] as [string, string[]]);
+    const boxH = pad * 2 + infoLines.reduce((s, [, v]) => s + v.length * 12.5, 0) - 3;
+    const boxTop = sy + 4;
+    roundRect(page, boxX, boxTop - boxH, boxW, boxH, 7, { color: panel });
+    page.drawRectangle({ x: boxX, y: boxTop - boxH + 7, width: 2.2, height: boxH - 14, color: accent });
+    let iy = boxTop - pad - 6;
+    for (const [k, vals] of infoLines) {
+      T(page, k, boxX + pad + 2, iy, { size: 8.5, color: muted });
+      vals.forEach((v, i) => T(page, v, RIGHT - pad, iy - i * 12.5, { size: 9, font: fm, color: ink, align: "right" }));
+      iy -= vals.length * 12.5;
+    }
+
+    y = Math.min(ry, boxTop - boxH, H - 88 * MM) - 12 * MM;
+  };
+
+  // Anschreiben (z. B. Website-Update-Angebot): eigene erste Seite mit Text und Begründung
+  const letter = isQuote && inv.letter && (String(inv.letter.title ?? "").trim() || String(inv.letter.body ?? "").trim()) ? inv.letter : null;
+  drawHead();
+  if (letter) {
+    if (String(letter.title ?? "").trim()) {
+      for (const ln of wrap(letter.title, fb2, 17, CW)) {
+        T(page, ln, ML, y, { size: 17, font: fb2, color: ink });
+        y -= 22;
+      }
+      y -= 6;
+    }
+    const blocks = String(letter.body ?? "").replace(/\r/g, "").split(/\n\s*\n/);
+    for (const b of blocks) {
+      const lines = b.split("\n");
+      for (const raw of lines) {
+        const l = raw.trimEnd();
+        if (!l.trim()) continue;
+        if (/^##\s+/.test(l)) {
+          if (y - 30 < BOTTOM) newPage();
+          y -= 4;
+          for (const ln of wrap(l.replace(/^##\s+/, ""), fm, 11.5, CW)) {
+            T(page, ln, ML, y, { size: 11.5, font: fm, color: ink });
+            y -= 16;
+          }
+          continue;
+        }
+        const bullet = /^[-•*]\s+/.test(l);
+        const text = bullet ? l.replace(/^[-•*]\s+/, "") : l;
+        const x = bullet ? ML + 6 * MM : ML;
+        const wl = wrap(text, f, 10.5, CW - (x - ML));
+        if (y - wl.length * 15 < BOTTOM) newPage();
+        if (bullet) page.drawCircle({ x: ML + 2 * MM, y: y + 3.4, size: 1.9, color: accent });
+        for (const ln of wl) {
+          T(page, ln, x, y, { size: 10.5, color: body });
+          y -= 15;
+        }
+        if (bullet) y -= 2;
+      }
+      y -= 9;
+    }
+    newPage(true);
+    drawHead();
+  }
 
   // ---------- Titel + Einleitung ----------
   const tw = T(page, docType, ML, y, { size: 21, font: fb2, color: ink });

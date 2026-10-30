@@ -1,4 +1,6 @@
 // Edge Function "rechnungen": PDF, Abschließen, Versand, Korrektur/Storno, Abos, Zahlungserinnerungen.
+// Seit der Medialyte-App: Team-Mitglieder mit dem Bereich „rechnungen“ arbeiten auf den Daten des Firmenkontos
+// (Lesen: PDFs; Schreiben: Abschließen, Senden …). Ohne Team-Recht (alte Rechnungs-App) gilt wie bisher das eigene Konto.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { buildInvoicePdf } from "./pdf.ts";
 import { addDays, addMonths, BILLING_SUFFIX, DEFAULTS, eur, fill, fmtDate, keepItem, positions, splitByBilling, today, totals } from "./util.ts";
@@ -58,7 +60,21 @@ Deno.serve(async (req) => {
     const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
     const { data: u, error } = await db.auth.getUser(token);
     if (error || !u?.user) return json({ error: "Bitte neu anmelden." }, 401);
-    const uid = u.user.id;
+    // Team-Rechte: mit dem Zugang des Nutzers prüfen (Zwei-Faktor gilt wie in der App)
+    const LESEN = new Set(["pdf", "quote_pdf"]);
+    const alsNutzer = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
+      global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const [{ data: liest }, { data: schreibt }] = await Promise.all([
+      alsNutzer.rpc("darf", { p_bereich: "rechnungen", p_schreiben: false }),
+      alsNutzer.rpc("darf", { p_bereich: "rechnungen", p_schreiben: true }),
+    ]);
+    let uid = u.user.id;
+    if (liest === true) {
+      if (!LESEN.has(action) && schreibt !== true) return json({ error: "Dafür fehlt dir das Recht." }, 403);
+      const { data: firma } = await alsNutzer.rpc("firma_id");
+      if (firma) uid = firma as string;
+    }
 
     switch (action) {
       case "pdf": {
